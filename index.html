@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+
+    <title>Visualization of TFL Accident Statistics</title>
+    <style>
+      body{
+        font-family: Helvetica, Arial, sans-serif;
+      }
+      .label, .vehicle-label{
+        font-size: 12px;
+      }
+      .label{
+        fill: white;
+      }
+      .borough-num, .vehicle-num{
+        text-anchor: end;
+      }
+      .borough-num {
+        fill: black;
+      }
+      footer{
+        margin-top: 20px;
+        font-size: 9px;
+        color: grey;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Visualization of TFL Accident Statistics</h1>
+
+    <div id='vis-vehicles'></div>
+    <div id='vis-age'></div>
+    <div id='vis-boroughs'></div>
+
+    <!-- remove if not neccessary after refactor! -->
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js'></script>
+    <script src='https://d3js.org/d3.v4.min.js'></script>
+    <script src='vis-accident-stats.js'></script>
+
+    <footer>
+      <div>Icons (altered) made by <a href="http://www.flaticon.com/authors/zlatko-najdenovski" title="Zlatko Najdenovski">Zlatko Najdenovski</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
+    </footer>
+  </body>
+</html>
