@@ -4,7 +4,7 @@ function createVis(data) {
 
   // severity - 3 unique values
   // ["Slight", "Severe", "Fatal"]
-  var severityTypes = Array.from( new Set( data.map( d => d.severity ) ) );
+  var severityTypes = Array.from( new Set( data.map( d => d.severity ) ) ).sort();
 
   // age band - 3 unique values
   // ["Adult", "Child", "Unknown"]
@@ -39,6 +39,198 @@ function createVis(data) {
   var height = 400;
 
   createBoroughVis(data);
+  createVehicleVis(data, 40);
+
+  function createVehicleVis(data, boxWidth) {
+    // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
+    var allTrafficModes = [].concat.apply( ['Pedestrian'], data.map( d => {
+      return d.vehicles.map( v => {
+        preprocessVehicleType(v);
+        return v.type;
+      } );
+    } ) );
+
+    var trafficModeTypes = Array.from( new Set( allTrafficModes ) ).sort();
+
+    var trafficCasualties = getTrafficCasualties(data, trafficModeTypes);
+
+    var casualtiesScale = d3.scaleLinear()
+      .domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Serious + d.Slight) )))
+      .range([1, width-boxWidth]);
+
+    //createBarVis(trafficCasualties, boxWidth);
+    createHorBarVis(trafficCasualties, boxWidth);
+
+    function getTrafficCasualties(data, trafficModeTypes) {
+      var trafficCasualties = trafficModeTypes.map( vehicleType  => {
+        var obj = {};
+        obj.Slight = 0;
+        obj.Serious = 0;
+        obj.Fatal = 0;
+
+        data.forEach( data => {
+
+          if (vehicleType === 'Pedestrian') {
+            data.casualties.forEach( casualty => {
+              if (casualty.mode === 'Pedestrian') {
+                obj[data.severity] += 1;
+                obj.type = 'Pedestrian';
+              }
+            });
+          } else {
+            data.vehicles.forEach( vehicle => {
+              if (vehicle.type === vehicleType) {
+                obj[data.severity] += 1;
+                obj.type = vehicleType;
+              }
+            });
+          }
+
+        });
+
+        obj.total = obj.Slight + obj.Serious + obj.Fatal;
+        return obj;
+      });
+
+      trafficCasualties.sort( (pre, cur) => (cur.Fatal + cur.Serious + cur.Slight) - (pre.Fatal + pre.Serious + pre.Slight));
+
+      return trafficCasualties;
+    }
+
+    function preprocessVehicleType(vehicle) {
+      switch (vehicle.type) {
+        case 'Motorcycle_0_50cc':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'Motorcycle';
+          break;
+        case 'Motorcycle_50_125cc':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'Motorcycle';
+          break;
+        case 'Motorcycle_125_500cc':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'Motorcycle';
+          break;
+        case 'Motorcycle_500cc_Plus':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'Motorcycle';
+          break;
+        case 'LightGoodsVehicle':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'GoodsVehicle';
+          break;
+        case 'MediumGoodsVehicle':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'GoodsVehicle';
+          break;
+        case 'HeavyGoodsVehicle':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'GoodsVehicle';
+          break;
+        case 'Minibus':
+          vehicle.fullType = vehicle.type;
+          vehicle.type = 'BusOrCoach';
+          break;
+        default:
+          vehicle.fullType = vehicle.type;
+      }
+    }
+  }
+
+  function createBarVis(data, boxWidth) {
+
+    var visWidth = width - boxWidth;
+    var visHeight = height/2 - boxWidth;
+
+    var stack = d3.stack();
+
+    var xScale = d3.scaleBand()
+      .domain(data.map(d => d.type))
+      .rangeRound([0, visWidth])
+      .padding(0.1)
+      .align(0.1);
+
+    var yScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.total)]).nice()
+      .range([visHeight, 1]);
+
+    var severityColor = d3.scaleOrdinal()
+      .domain(severityTypes)
+      .range(['#a05d56', '#98abc5', '#ff8c00']);
+
+    var svg = d3.select('#'+'vis-vehicles')
+      .append('svg')
+      .attr('width', visWidth)
+      .attr('height', visHeight);
+
+    svg.selectAll('.serie')
+      .data(stack.keys(severityTypes)(data))
+      .enter()
+      .append('g')
+        .attr('class', d => 'serie serie-'+d.key)
+        .attr('fill', d => severityColor(d.key))
+      .selectAll('rect')
+        .data(d => d)
+        .enter()
+        .append('rect')
+          .attr('x', d => xScale(d.data.type))
+          .attr('y', d => yScale(d[1]))
+          .attr('height', d => Math.max(1, yScale(d[0]) - yScale(d[1])) )
+          .attr('width', xScale.bandwidth());
+  }
+
+  function createHorBarVis(data, boxWidth) {
+
+    var visWidth = width - boxWidth;
+    var visHeight = height;
+
+    var stack = d3.stack();
+
+    var yScale = d3.scaleBand()
+      .domain(data.map(d => d.type))
+      .rangeRound([0, visHeight])
+      .padding(0.1)
+      .align(0.1);
+
+    var xScale = d3.scaleLinear()
+      .domain([1, d3.max(data, d => d.total)]).nice()
+      .range([boxWidth, visWidth]);
+
+    var severityColor = d3.scaleOrdinal()
+      .domain(severityTypes)
+      .range(['#98abc5', '#7b6888', '#ff8c00']);
+
+    var svg = d3.select('#'+'vis-vehicles')
+      .append('svg')
+      .attr('width', visWidth)
+      .attr('height', visHeight);
+
+    svg.selectAll('.vehicle-icon')
+      .data(data)
+      .enter()
+      .append('svg:image')
+        .attr('class', 'vehicle-icon')
+        .attr('x', d => d.x)
+        .attr('y', d => yScale(d.type))
+        .attr('width', yScale.bandwidth())
+        .attr('height', yScale.bandwidth())
+        .attr('xlink:href', d => 'icons/'+d.type+'.svg');
+
+    svg.selectAll('.serie')
+      .data(stack.keys(severityTypes)(data))
+      .enter()
+      .append('g')
+        .attr('class', d => 'serie serie-'+d.key)
+        .attr('fill', d => severityColor(d.key))
+      .selectAll('rect')
+        .data(d => d)
+        .enter()
+        .append('rect')
+          .attr('y', d => yScale(d.data.type))
+          .attr('x', d => xScale(d[0]))
+          .attr('width', d => Math.max( 1, xScale(d[1]) - xScale(d[0]))) // 1 is minVisible value
+          .attr('height', yScale.bandwidth());
+  }
 
   function createBoroughVis(data) {
 
