@@ -38,8 +38,39 @@ function createVis(data) {
   var width = 400;
   var height = 400;
 
-  createBoroughVis(data);
-  createVehicleVis(data, 40);
+  var boroughVis = createBoroughVis(data);
+  var vehicleVis = createVehicleVis(data, 40);
+  var ageVis = createAgeVis(data);
+
+  function createAgeVis() {
+
+    var ageBands = [
+      { type: [0, 4], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [5, 11], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [12, 17], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [18, 24], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [25, 34], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [35, 49], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [50, 74], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+      { type: [75, 100], Fatal: 0, Severe: 0, Slight: 0, total: 0 }
+    ];
+
+    data.forEach( data => {
+      ageBands.forEach( bandObj => {
+        data.casualties.forEach( casualty => {
+          if (casualty.age >= bandObj.type[0] && casualty.age <= bandObj.type[1]) {
+            bandObj[casualty.severity] += 1;
+          }
+        });
+      });
+    });
+
+    ageBands.forEach( bandObj => {
+      bandObj.total = bandObj.Fatal + bandObj.Severe + bandObj.Slight;
+    });
+
+    createHorBarVis(ageBands, 'vis-age', ageBands.length*30, false);
+  }
 
   function createVehicleVis(data, boxWidth) {
     // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
@@ -55,17 +86,17 @@ function createVis(data) {
     var trafficCasualties = getTrafficCasualties(data, trafficModeTypes);
 
     var casualtiesScale = d3.scaleLinear()
-      .domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Serious + d.Slight) )))
+      .domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Severe + d.Slight) )))
       .range([1, width-boxWidth]);
 
     //createBarVis(trafficCasualties, boxWidth);
-    createHorBarVis(trafficCasualties, boxWidth);
+    createHorBarVis(trafficCasualties, 'vis-vehicles', trafficCasualties.length*30, true);
 
     function getTrafficCasualties(data, trafficModeTypes) {
       var trafficCasualties = trafficModeTypes.map( vehicleType  => {
         var obj = {};
         obj.Slight = 0;
-        obj.Serious = 0;
+        obj.Severe = 0;
         obj.Fatal = 0;
 
         data.forEach( data => {
@@ -88,11 +119,11 @@ function createVis(data) {
 
         });
 
-        obj.total = obj.Slight + obj.Serious + obj.Fatal;
+        obj.total = obj.Slight + obj.Severe + obj.Fatal;
         return obj;
       });
 
-      trafficCasualties.sort( (pre, cur) => (cur.Fatal + cur.Serious + cur.Slight) - (pre.Fatal + pre.Serious + pre.Slight));
+      trafficCasualties.sort( (pre, cur) => (cur.Fatal + cur.Severe + cur.Slight) - (pre.Fatal + pre.Severe + pre.Slight));
 
       return trafficCasualties;
     }
@@ -179,10 +210,12 @@ function createVis(data) {
           .attr('width', xScale.bandwidth());
   }
 
-  function createHorBarVis(data, boxWidth) {
+  function createHorBarVis(data, idElement, height, iconsEnabled) {
 
-    var visWidth = width - boxWidth;
-    var visHeight = height;
+    var margin = 20;
+    var shift = 40;
+    var visWidth = width - margin*2;
+    var visHeight = height - margin*2;
 
     var stack = d3.stack();
 
@@ -194,33 +227,28 @@ function createVis(data) {
 
     var xScale = d3.scaleLinear()
       .domain([1, d3.max(data, d => d.total)]).nice()
-      .range([boxWidth, visWidth]);
+      .range([shift, visWidth]);
 
     var severityColor = d3.scaleOrdinal()
       .domain(severityTypes)
       .range(['#98abc5', '#7b6888', '#ff8c00']);
 
-    var svg = d3.select('#'+'vis-vehicles')
+    var svg = d3.select('#'+idElement)
       .append('svg')
-      .attr('width', visWidth)
-      .attr('height', visHeight);
+      .attr('width', visWidth + margin*2)
+      .attr('height', visHeight + margin*2)
+        .append('g')
+        .attr('transform', 'translate('+margin+','+margin+')');
 
-    svg.selectAll('.vehicle-icon')
-      .data(data)
-      .enter()
-      .append('svg:image')
-        .attr('class', 'vehicle-icon')
-        .attr('x', d => d.x)
-        .attr('y', d => yScale(d.type))
-        .attr('width', yScale.bandwidth())
-        .attr('height', yScale.bandwidth())
-        .attr('xlink:href', d => 'icons/'+d.type+'.svg');
+    svg.append('g')
+        .attr('class', 'axis axis--x')
+        .call(d3.axisTop(xScale).ticks('3'));
 
     svg.selectAll('.serie')
       .data(stack.keys(severityTypes)(data))
       .enter()
       .append('g')
-        .attr('class', d => 'serie serie-'+d.key)
+        .attr('class', d => 'serie serie--'+d.key)
         .attr('fill', d => severityColor(d.key))
       .selectAll('rect')
         .data(d => d)
@@ -230,6 +258,29 @@ function createVis(data) {
           .attr('x', d => xScale(d[0]))
           .attr('width', d => Math.max( 1, xScale(d[1]) - xScale(d[0]))) // 1 is minVisible value
           .attr('height', yScale.bandwidth());
+
+    if (iconsEnabled) {
+      svg.selectAll('.icon-bar')
+        .data(data)
+        .enter()
+        .append('svg:image')
+          .attr('class', 'icon-bar')
+          .attr('x', 0)
+          .attr('y', d => yScale(d.type))
+          .attr('width', yScale.bandwidth())
+          .attr('height', yScale.bandwidth())
+          .attr('xlink:href', d => 'icons/'+d.type+'.svg');
+    } else {
+      svg.selectAll('.label-bar')
+        .data(data)
+        .enter()
+        .append('text')
+          .attr('class', 'label-bar')
+          .attr('x', margin/3*2)
+          .attr('y', d => yScale(d.type)+yScale.bandwidth()/4*3)
+          .text(d => d.type[0]+'+');
+    }
+
   }
 
   function createBoroughVis(data) {
@@ -296,24 +347,51 @@ function createVis(data) {
     }
 
     function createVis(idElement) {
-      var svg = d3.select('#'+idElement)
+      var boroughVis = {};
+
+      boroughVis.svg = d3.select('#'+idElement)
         .append('svg')
         .attr('width', width)
         .attr('height', height);
 
-      var rect = svg.selectAll('.borough-rect')
-        .data(londonBoroughs)
-        .enter()
-        .append('rect')
-          .attr('id', d => 'borough-rect-'+d.nameShort)
-          .attr('class', 'borough-rect')
-          .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift)
-          .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift)
-          .attr('width', boxWidth)
-          .attr('height', boxWidth)
+      boroughVis.update = function(data) {
+
+        var rect = boroughVis.svg.selectAll('.borough-rect')
+          .data(londonBoroughs, d => d);
+
+        rect.exit()
+          .transition()
+            .style('opacity', 1e-6)
+            .remove();
+
+        rect.transition()
           .attr('fill', d => casualtiesScale(d.casualties));
 
-      svg.selectAll('.borough-label')
+        rect.enter()
+          .append('rect')
+            .attr('id', d => 'borough-rect-'+d.nameShort)
+            .attr('class', 'borough-rect')
+            .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift)
+            .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift)
+            .attr('width', boxWidth)
+            .attr('height', boxWidth)
+          .transition()
+            .attr('fill', d => casualtiesScale(d.casualties));
+
+        boroughVis.svg.selectAll('.borough-num')
+          .data(londonBoroughs)
+          .enter()
+          .append('text')
+            .attr('id', d => 'borough-num-'+d.nameShort)
+            .attr('class', 'borough-num label')
+            .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + boxWidth - shift*2)
+            .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + boxWidth - shift*2)
+          .text(d => d.casualties);
+      }
+
+      boroughVis.update(data);
+
+      boroughVis.svg.selectAll('.borough-label')
         .data(londonBoroughs)
         .enter()
         .append('text')
@@ -323,17 +401,7 @@ function createVis(data) {
           .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + shift*5)
         .text(d => d.nameShort.toUpperCase());
 
-      svg.selectAll('.borough-num')
-        .data(londonBoroughs)
-        .enter()
-        .append('text')
-          .attr('id', d => 'borough-num-'+d.nameShort)
-          .attr('class', 'borough-num label')
-          .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + boxWidth - shift*2)
-          .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + boxWidth - shift*2)
-        .text(d => d.casualties);
-
-      return svg;
+      return boroughVis;
     }
   }
 
