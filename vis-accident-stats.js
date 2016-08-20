@@ -38,8 +38,7 @@ function createVis(data) {
   var width = 400;
   var height = 400;
 
-  var t = d3.transition(t)
-      .duration(2000);
+  var t = d3.transition(t).duration(2000);
 
   var boroughVis = createBoroughVis(data);
   var vehicleVis = createVehicleVis(data, 40);
@@ -50,7 +49,9 @@ function createVis(data) {
 
     if (change.type === 'borough') {
       updatedData = updatedData.filter(d => d.borough === change.value);
+
       ageVis.update(updatedData);
+      vehicleVis.update(updatedData);
     }
 
   }
@@ -150,6 +151,9 @@ function createVis(data) {
   }
 
   function createVehicleVis(data, boxWidth) {
+
+    var vehicleVis = {};
+
     // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
     var allTrafficModes = [].concat.apply( ['Pedestrian'], data.map( d => {
       return d.vehicles.map( v => {
@@ -166,7 +170,16 @@ function createVis(data) {
       .domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Severe + d.Slight) )))
       .range([1, width-boxWidth]);
 
-    return createHorBarVis(trafficCasualties, 'vis-vehicles', trafficCasualties.length*30, true);
+    vehicleVis.vis = createHorBarVis(trafficCasualties, 'vis-vehicles', trafficCasualties.length*30, true);
+
+    vehicleVis.update = function (data) {
+      var trafficCasualties = getTrafficCasualties(data, trafficModeTypes);
+      casualtiesScale.domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Severe + d.Slight) )));
+
+      vehicleVis.vis.update(trafficCasualties);
+    }
+
+    return vehicleVis;
 
     function getTrafficCasualties(data, trafficModeTypes) {
       var trafficCasualties = trafficModeTypes.map( vehicleType  => {
