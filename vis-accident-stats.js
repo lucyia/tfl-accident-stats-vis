@@ -1,4 +1,4 @@
-d3.json('data.json', data => createVis(data) );
+d3.json('data.json', data => createVis(data));
 
 function createVis(data) {
 
@@ -41,18 +41,28 @@ function createVis(data) {
   var t = d3.transition(t).duration(2000);
 
   var boroughVis = createBoroughVis(data);
-  var vehicleVis = createVehicleVis(data, 40);
+  var vehicleVis = createVehicleVis(data);
   var ageVis = createAgeVis(data);
 
-  function updateAllVis(change) {
+  function updateAllVis(change = {type: undefined}) {
+
     var updatedData = data;
 
-    if (change.type === 'borough') {
-      updatedData = updatedData.filter(d => d.borough === change.value);
-
-      ageVis.update(updatedData);
-      vehicleVis.update(updatedData);
+    switch (change.type) {
+      case 'borough':
+        updatedData = updatedData.filter(d => d.borough === change.value);
+        break;
+      case 'age':
+        updatedData;
+        break;
+      case undefined:
+        d3.selectAll('.borough-rect')
+          .classed('borough-selected', false);
+        break;
     }
+
+    ageVis.update(updatedData);
+    vehicleVis.update(updatedData);
 
   }
 
@@ -114,9 +124,7 @@ function createVis(data) {
 
     ageVis.vis = createHorBarVis(prepareData(data), 'vis-age', 8*30, false);
 
-    ageVis.update = function (data) {
-      ageVis.vis.update(prepareData(data));
-    }
+    ageVis.update = data => ageVis.vis.update(prepareData(data));
 
     return ageVis;
 
@@ -150,38 +158,27 @@ function createVis(data) {
     }
   }
 
-  function createVehicleVis(data, boxWidth) {
+  function createVehicleVis(data) {
 
     var vehicleVis = {};
 
-    // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
-    var allTrafficModes = [].concat.apply( ['Pedestrian'], data.map( d => {
-      return d.vehicles.map( v => {
-        preprocessVehicleType(v);
-        return v.type;
-      } );
-    } ) );
+    vehicleVis.vis = createHorBarVis(preprocessData(data), 'vis-vehicles', 11*30, true);
 
-    var trafficModeTypes = Array.from( new Set( allTrafficModes ) ).sort();
-
-    var trafficCasualties = getTrafficCasualties(data, trafficModeTypes);
-
-    var casualtiesScale = d3.scaleLinear()
-      .domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Severe + d.Slight) )))
-      .range([1, width-boxWidth]);
-
-    vehicleVis.vis = createHorBarVis(trafficCasualties, 'vis-vehicles', trafficCasualties.length*30, true);
-
-    vehicleVis.update = function (data) {
-      var trafficCasualties = getTrafficCasualties(data, trafficModeTypes);
-      casualtiesScale.domain(d3.extent(trafficCasualties.map(d => (d.Fatal + d.Severe + d.Slight) )));
-
-      vehicleVis.vis.update(trafficCasualties);
-    }
+    vehicleVis.update = data => vehicleVis.vis.update(preprocessData(data));
 
     return vehicleVis;
 
-    function getTrafficCasualties(data, trafficModeTypes) {
+    function preprocessData(data) {
+      // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
+      var allTrafficModes = [].concat.apply( ['Pedestrian'], data.map( d => {
+        return d.vehicles.map( v => {
+          preprocessVehicleType(v);
+          return v.type;
+        } );
+      } ) );
+
+      var trafficModeTypes = Array.from( new Set( allTrafficModes ) ).sort();
+
       var trafficCasualties = trafficModeTypes.map( vehicleType  => {
         var obj = {};
         obj.Slight = 0;
@@ -215,44 +212,44 @@ function createVis(data) {
       trafficCasualties.sort( (pre, cur) => (cur.Fatal + cur.Severe + cur.Slight) - (pre.Fatal + pre.Severe + pre.Slight));
 
       return trafficCasualties;
-    }
 
-    function preprocessVehicleType(vehicle) {
-      switch (vehicle.type) {
-        case 'Motorcycle_0_50cc':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'Motorcycle';
-          break;
-        case 'Motorcycle_50_125cc':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'Motorcycle';
-          break;
-        case 'Motorcycle_125_500cc':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'Motorcycle';
-          break;
-        case 'Motorcycle_500cc_Plus':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'Motorcycle';
-          break;
-        case 'LightGoodsVehicle':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'GoodsVehicle';
-          break;
-        case 'MediumGoodsVehicle':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'GoodsVehicle';
-          break;
-        case 'HeavyGoodsVehicle':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'GoodsVehicle';
-          break;
-        case 'Minibus':
-          vehicle.fullType = vehicle.type;
-          vehicle.type = 'BusOrCoach';
-          break;
-        default:
-          vehicle.fullType = vehicle.type;
+      function preprocessVehicleType(vehicle) {
+        switch (vehicle.type) {
+          case 'Motorcycle_0_50cc':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'Motorcycle';
+            break;
+          case 'Motorcycle_50_125cc':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'Motorcycle';
+            break;
+          case 'Motorcycle_125_500cc':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'Motorcycle';
+            break;
+          case 'Motorcycle_500cc_Plus':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'Motorcycle';
+            break;
+          case 'LightGoodsVehicle':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'GoodsVehicle';
+            break;
+          case 'MediumGoodsVehicle':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'GoodsVehicle';
+            break;
+          case 'HeavyGoodsVehicle':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'GoodsVehicle';
+            break;
+          case 'Minibus':
+            vehicle.fullType = vehicle.type;
+            vehicle.type = 'BusOrCoach';
+            break;
+          default:
+            vehicle.fullType = vehicle.type;
+        }
       }
     }
   }
@@ -331,7 +328,10 @@ function createVis(data) {
         .append('g')
         .attr('transform', 'translate('+margin+','+margin+')');
 
+    appendBackground(horBarVis.svg, visWidth, visHeight);
+
     var xAxis = d3.axisTop(xScale).ticks('4');
+
     horBarVis.svg.append('g')
         .attr('class', 'axis axis--x')
         .call(xAxis);
@@ -372,6 +372,21 @@ function createVis(data) {
             .attr('width', d => Math.max( 1, xScale(d[1]) - xScale(d[0]))) // 1 is minVisible value
             .style('fill-opacity', 1);
     };
+    
+    horBarVis.svg.selectAll('.rect-background')
+      .data(data)
+      .enter()
+      .append('rect')
+        .attr('class', 'rect-background')
+        .attr('x', 0)
+        .attr('y', d => yScale(d.type))
+        .attr('width', yScale.bandwidth())
+        .attr('height', yScale.bandwidth())
+        .attr('fill', 'transparent')
+        .on('click', function (d) {
+          console.log('clikcdfh', d)
+          d3.select(this).attr('fill', 'blue')
+        });
 
     if (iconsEnabled) {
       horBarVis.svg.selectAll('.icon-bar')
@@ -403,54 +418,56 @@ function createVis(data) {
 
   function createBoroughVis(data) {
 
-    var boxWidth = (width <= height) ? (width / 8.5) : (height / 7.5);
-    var shift = boxWidth / 17;
+    var boroughVis = {};
 
-    var londonBoroughs = [
-      { pos: [4, 3], nameShort: 'cty', name: 'City of London'         },
-      { pos: [7, 3], nameShort: 'bar', name: 'Barking and Dagenham'   },
-      { pos: [3, 1], nameShort: 'brn', name: 'Barnet'                 },
-      { pos: [7, 4], nameShort: 'bxl', name: 'Bexley'                 },
-      { pos: [2, 2], nameShort: 'brt', name: 'Brent'                  },
-      { pos: [5, 5], nameShort: 'brm', name: 'Bromley'                },
-      { pos: [3, 2], nameShort: 'cmd', name: 'Camden'                 },
-      { pos: [4, 5], nameShort: 'crd', name: 'Croydon'                },
-      { pos: [1, 2], nameShort: 'elg', name: 'Ealing'                 },
-      { pos: [4, 0], nameShort: 'enf', name: 'Enfield'                },
-      { pos: [6, 4], nameShort: 'grn', name: 'Greenwich'              },
-      { pos: [5, 2], nameShort: 'hck', name: 'Hackney'                },
-      { pos: [1, 3], nameShort: 'hms', name: 'Hammersmith and Fulham' },
-      { pos: [4, 1], nameShort: 'hgy', name: 'Haringey'               },
-      { pos: [2, 1], nameShort: 'hrw', name: 'Harrow'                 },
-      { pos: [7, 2], nameShort: 'hvg', name: 'Havering'               },
-      { pos: [0, 2], nameShort: 'hdn', name: 'Hillingdon'             },
-      { pos: [0, 3], nameShort: 'hns', name: 'Hounslow'               },
-      { pos: [4, 2], nameShort: 'isl', name: 'Islington'              },
-      { pos: [2, 3], nameShort: 'kns', name: 'Kensington and Chelsea' },
-      { pos: [2, 5], nameShort: 'kng', name: 'Kingston'               },
-      { pos: [3, 4], nameShort: 'lam', name: 'Lambeth'                },
-      { pos: [5, 4], nameShort: 'lsh', name: 'Lewisham'               },
-      { pos: [3, 5], nameShort: 'mrt', name: 'Merton'                 },
-      { pos: [6, 3], nameShort: 'nwm', name: 'Newham'                 },
-      { pos: [6, 2], nameShort: 'rdb', name: 'Redbridge'              },
-      { pos: [1, 4], nameShort: 'rch', name: 'Richmond upon Thames'   },
-      { pos: [4, 4], nameShort: 'swr', name: 'Southwark'              },
-      { pos: [3, 6], nameShort: 'stn', name: 'Sutton'                 },
-      { pos: [5, 3], nameShort: 'tow', name: 'Tower Hamlets'          },
-      { pos: [5, 1], nameShort: 'wth', name: 'Waltham Forest'         },
-      { pos: [2, 4], nameShort: 'wns', name: 'Wandsworth'             },
-      { pos: [3, 3], nameShort: 'wst', name: 'City of Westminster'    }
-    ];
+    var margin = 20;
+    var visWidth = width - margin*2;
+    var visHeight = height - margin*2;
 
-    preprocessLondonBoroughs();
+    boroughVis.vis = createVis(preprocessData(data), 'vis-boroughs');
 
-    var casualtiesScale = d3.scaleLinear()
-      .domain(d3.extent(londonBoroughs.map(d => d.casualties)))
-      .range(['#cee069', '#2c7fb8']);
+    boroughVis.update = data => boroughVis.vis.update(preprocessData(data));
 
-    return createVis('vis-boroughs');
+    return boroughVis;
 
-    function preprocessLondonBoroughs() {
+    function preprocessData(data) {
+
+      var londonBoroughs = [
+        { pos: [4, 3], nameShort: 'cty', name: 'City of London'         },
+        { pos: [7, 3], nameShort: 'bar', name: 'Barking and Dagenham'   },
+        { pos: [3, 1], nameShort: 'brn', name: 'Barnet'                 },
+        { pos: [7, 4], nameShort: 'bxl', name: 'Bexley'                 },
+        { pos: [2, 2], nameShort: 'brt', name: 'Brent'                  },
+        { pos: [5, 5], nameShort: 'brm', name: 'Bromley'                },
+        { pos: [3, 2], nameShort: 'cmd', name: 'Camden'                 },
+        { pos: [4, 5], nameShort: 'crd', name: 'Croydon'                },
+        { pos: [1, 2], nameShort: 'elg', name: 'Ealing'                 },
+        { pos: [4, 0], nameShort: 'enf', name: 'Enfield'                },
+        { pos: [6, 4], nameShort: 'grn', name: 'Greenwich'              },
+        { pos: [5, 2], nameShort: 'hck', name: 'Hackney'                },
+        { pos: [1, 3], nameShort: 'hms', name: 'Hammersmith and Fulham' },
+        { pos: [4, 1], nameShort: 'hgy', name: 'Haringey'               },
+        { pos: [2, 1], nameShort: 'hrw', name: 'Harrow'                 },
+        { pos: [7, 2], nameShort: 'hvg', name: 'Havering'               },
+        { pos: [0, 2], nameShort: 'hdn', name: 'Hillingdon'             },
+        { pos: [0, 3], nameShort: 'hns', name: 'Hounslow'               },
+        { pos: [4, 2], nameShort: 'isl', name: 'Islington'              },
+        { pos: [2, 3], nameShort: 'kns', name: 'Kensington and Chelsea' },
+        { pos: [2, 5], nameShort: 'kng', name: 'Kingston'               },
+        { pos: [3, 4], nameShort: 'lam', name: 'Lambeth'                },
+        { pos: [5, 4], nameShort: 'lsh', name: 'Lewisham'               },
+        { pos: [3, 5], nameShort: 'mrt', name: 'Merton'                 },
+        { pos: [6, 3], nameShort: 'nwm', name: 'Newham'                 },
+        { pos: [6, 2], nameShort: 'rdb', name: 'Redbridge'              },
+        { pos: [1, 4], nameShort: 'rch', name: 'Richmond upon Thames'   },
+        { pos: [4, 4], nameShort: 'swr', name: 'Southwark'              },
+        { pos: [3, 6], nameShort: 'stn', name: 'Sutton'                 },
+        { pos: [5, 3], nameShort: 'tow', name: 'Tower Hamlets'          },
+        { pos: [5, 1], nameShort: 'wth', name: 'Waltham Forest'         },
+        { pos: [2, 4], nameShort: 'wns', name: 'Wandsworth'             },
+        { pos: [3, 3], nameShort: 'wst', name: 'City of Westminster'    }
+      ];
+
       londonBoroughs.forEach( borough => {
         var casualties = 0;
 
@@ -462,15 +479,29 @@ function createVis(data) {
 
         borough.casualties = casualties;
       });
+
+      return londonBoroughs;
     }
 
-    function createVis(idElement) {
+    function createVis(londonBoroughs, idElement) {
+
       var boroughVis = {};
+
+      var boxWidth = (visWidth <= visHeight) ? (visWidth / 8.5) : (visHeight / 7.5);
+      var shift = boxWidth / 17;
+
+      var casualtiesScale = d3.scaleLinear()
+        .domain(d3.extent(londonBoroughs.map(d => d.casualties)))
+        .range(['#cee069', '#2c7fb8']);
 
       boroughVis.svg = d3.select('#'+idElement)
         .append('svg')
-        .attr('width', width)
-        .attr('height', height);
+          .attr('width', visWidth + margin*2)
+          .attr('height', visHeight + margin*2)
+        .append('g')
+          .attr('transform', 'translate('+ margin +','+ margin +')');
+
+      appendBackground(boroughVis.svg, visWidth, visHeight);
 
       boroughVis.update = function(data) {
 
@@ -494,7 +525,13 @@ function createVis(data) {
             .attr('width', boxWidth)
             .attr('height', boxWidth)
             .style('fill-opacity', 0)
-            .on('click', d => {
+            .on('click', function(d) {
+              d3.selectAll('.borough-rect')
+                .classed('borough-selected', false);
+
+              d3.select(this)
+                .classed('borough-selected', true);
+
               updateAllVis({type: 'borough', value: d.name});
             })
           .transition(t)
@@ -526,6 +563,17 @@ function createVis(data) {
 
       return boroughVis;
     }
+  }
+
+  function appendBackground(svg, width, height) {
+    svg.append('rect')
+      .attr('class', 'svg-background')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', width)
+      .attr('height', height)
+      .attr('fill', 'transparent')
+      .on('click', () => updateAllVis());
   }
 
 }
