@@ -44,26 +44,73 @@ function createVis(data) {
   var vehicleVis = createVehicleVis(data);
   var ageVis = createAgeVis(data);
 
-  function updateAllVis(change = {type: undefined}) {
+  function updateAllVis(type = undefined, value) {
 
     var updatedData = data;
 
-    switch (change.type) {
+    switch (type) {
       case 'borough':
-        updatedData = updatedData.filter(d => d.borough === change.value);
+        updatedData = updatedData.filter(d => d.borough === value);
+        ageVis.update(updatedData);
+        vehicleVis.update(updatedData);
         break;
       case 'age':
-        updatedData;
+        var filteredData = [];
+        updatedData.forEach( d => {
+          var found = false;
+
+          d.casualties.forEach( casualty => {
+            if (casualty.age >= value[0] && casualty.age <= value[1]) {
+              found = true;
+            }
+          });
+
+          if (found) {
+            filteredData.push(d);
+          }
+        });
+        updatedData = filteredData;
+
+        ageVis.update(updatedData);
+        vehicleVis.update(updatedData);
+        boroughVis.update(updatedData);
+        break;
+      case 'mode':
+        var filteredData = [];
+        updatedData.forEach( d => {
+          var found = false;
+
+          d.vehicles.forEach( vehicle => {
+            if (vehicle.type === value) {
+              found = true;
+            }
+          });
+
+          d.casualties.forEach( casualty => {
+            if (value === 'Pedestrian' && casualty.mode === value) {
+              found = true;
+            }
+          });
+
+          if (found) {
+            filteredData.push(d);
+          }
+        });
+        updatedData = filteredData;
+
+        ageVis.update(updatedData);
+        vehicleVis.update(updatedData);
+        boroughVis.update(updatedData);
         break;
       case undefined:
-        d3.selectAll('.borough-rect')
-          .classed('borough-selected', false);
+        d3.selectAll('.rect-selected')
+          .classed('rect-selected', false);
+
+        ageVis.update(updatedData);
+        vehicleVis.update(updatedData);
+        boroughVis.update(updatedData);
         break;
     }
-
-    ageVis.update(updatedData);
-    vehicleVis.update(updatedData);
-
   }
 
   function createMapVis(data) {
@@ -130,14 +177,14 @@ function createVis(data) {
 
     function prepareData(data) {
       var ageBands = [
-        { type: [0, 4], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [5, 11], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [12, 17], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [18, 24], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [25, 34], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [35, 49], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [50, 74], Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [75, 100], Fatal: 0, Severe: 0, Slight: 0, total: 0 }
+        { type: [0, 4], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [5, 11], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [12, 17], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [18, 24], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [25, 34], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [35, 49], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [50, 74], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
+        { type: [75, 100], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 }
       ];
 
       data.forEach( data => {
@@ -181,9 +228,12 @@ function createVis(data) {
 
       var trafficCasualties = trafficModeTypes.map( vehicleType  => {
         var obj = {};
+
         obj.Slight = 0;
         obj.Severe = 0;
         obj.Fatal = 0;
+
+        obj.groupType = 'mode';
 
         data.forEach( data => {
 
@@ -366,33 +416,44 @@ function createVis(data) {
           .enter()
           .append('rect')
             .attr('y', d => yScale(d.data.type))
-            .attr('x', d => xScale(d[0]))
+            .attr('x', d => Math.max(shift, xScale(d[0])))
             .attr('height', yScale.bandwidth())
           .transition(t)
-            .attr('width', d => Math.max( 1, xScale(d[1]) - xScale(d[0]))) // 1 is minVisible value
+            .attr('width', d => Math.max(1, xScale(d[1]) - xScale(d[0])))
             .style('fill-opacity', 1);
     };
-    
-    horBarVis.svg.selectAll('.rect-background')
-      .data(data)
-      .enter()
-      .append('rect')
-        .attr('class', 'rect-background')
-        .attr('x', 0)
-        .attr('y', d => yScale(d.type))
-        .attr('width', yScale.bandwidth())
-        .attr('height', yScale.bandwidth())
-        .attr('fill', 'transparent')
-        .on('click', function (d) {
-          console.log('clikcdfh', d)
-          d3.select(this).attr('fill', 'blue')
+
+    var groupData = horBarVis.svg.selectAll('.g-bar')
+      .data(data);
+
+    var group = groupData.enter()
+      .append('g')
+        .attr('class', 'g-bar')
+        .on('click', function(d) {
+          d3.selectAll('.rect-background')
+            .classed('rect-selected', false);
+
+          toggleClass(d3.select(this), '.rect-background', 'rect-selected', true);
+
+          updateAllVis(d.groupType, d.type);
+        })
+        .on('mouseover', function (d) {
+          toggleClass(d3.select(this), '.rect-background', 'rect-hover', true);
+        })
+        .on('mouseout', function (d) {
+          toggleClass(d3.select(this), '.rect-background', 'rect-hover', false);
         });
 
+    group.append('rect')
+      .attr('class', 'rect-background')
+      .attr('x', 0)
+      .attr('y', d => yScale(d.type))
+      .attr('width', yScale.bandwidth())
+      .attr('height', yScale.bandwidth())
+      .attr('fill', 'transparent');
+
     if (iconsEnabled) {
-      horBarVis.svg.selectAll('.icon-bar')
-        .data(data)
-        .enter()
-        .append('svg:image')
+      group.append('svg:image')
           .attr('class', 'icon-bar')
           .attr('x', 0)
           .attr('y', d => yScale(d.type))
@@ -400,11 +461,8 @@ function createVis(data) {
           .attr('height', yScale.bandwidth())
           .attr('xlink:href', d => 'icons/'+d.type+'.svg');
     } else {
-      horBarVis.svg.selectAll('.label-bar')
-        .data(data)
-        .enter()
-        .append('text')
-          .attr('class', 'label-bar')
+      group.append('text')
+          .attr('class', 'label-bar label')
           .attr('x', margin/3*2)
           .attr('y', d => yScale(d.type)+yScale.bandwidth()/4*3)
           .text(d => d.type[0]+'+');
@@ -433,13 +491,14 @@ function createVis(data) {
     function preprocessData(data) {
 
       var londonBoroughs = [
-        { pos: [4, 3], nameShort: 'cty', name: 'City of London'         },
+        { pos: [-10, -10], nameShort: 'bug', name: 'dummy element'      }, // known bug: updated selection for generating vis ignores the first element
         { pos: [7, 3], nameShort: 'bar', name: 'Barking and Dagenham'   },
         { pos: [3, 1], nameShort: 'brn', name: 'Barnet'                 },
         { pos: [7, 4], nameShort: 'bxl', name: 'Bexley'                 },
         { pos: [2, 2], nameShort: 'brt', name: 'Brent'                  },
         { pos: [5, 5], nameShort: 'brm', name: 'Bromley'                },
         { pos: [3, 2], nameShort: 'cmd', name: 'Camden'                 },
+        { pos: [4, 3], nameShort: 'cty', name: 'City of London'         },
         { pos: [4, 5], nameShort: 'crd', name: 'Croydon'                },
         { pos: [1, 2], nameShort: 'elg', name: 'Ealing'                 },
         { pos: [4, 0], nameShort: 'enf', name: 'Enfield'                },
@@ -505,8 +564,31 @@ function createVis(data) {
 
       boroughVis.update = function(data) {
 
-        var rect = boroughVis.svg.selectAll('.borough-rect')
-          .data(londonBoroughs, d => d);
+        casualtiesScale.domain(d3.extent(data.map(d => d.casualties)));
+
+        var groupData = boroughVis.svg.selectAll('.g-borough')
+          .data(data, d => d);
+
+        var group = groupData.enter()
+          .append('g')
+            .attr('class', 'g-borough')
+          .on('click', function(d) {
+            d3.selectAll('.rect-selected')
+              .classed('rect-selected', false);
+
+            toggleClass(d3.select(this), '.borough-rect', 'rect-selected', true);
+
+            updateAllVis('borough', d.name);
+          })
+          .on('mouseover', function (d) {
+            toggleClass(d3.select(this), '.borough-rect', 'rect-hover', true);
+          })
+          .on('mouseout', function (d) {
+            toggleClass(d3.select(this), '.borough-rect', 'rect-hover', false);
+          });
+
+        var rect = group.append('rect')
+          .attr('class', 'borough-rect');
 
         rect.exit()
           .transition(t)
@@ -516,53 +598,42 @@ function createVis(data) {
         rect.transition(t)
           .attr('fill', d => casualtiesScale(d.casualties));
 
-        rect.enter()
-          .append('rect')
-            .attr('id', d => 'borough-rect-'+d.nameShort)
+        rect.attr('id', d => 'borough-rect-'+d.nameShort)
             .attr('class', 'borough-rect')
             .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift)
             .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift)
             .attr('width', boxWidth)
             .attr('height', boxWidth)
             .style('fill-opacity', 0)
-            .on('click', function(d) {
-              d3.selectAll('.borough-rect')
-                .classed('borough-selected', false);
-
-              d3.select(this)
-                .classed('borough-selected', true);
-
-              updateAllVis({type: 'borough', value: d.name});
-            })
           .transition(t)
             .attr('fill', d => casualtiesScale(d.casualties))
             .style('fill-opacity', 1);
 
-        boroughVis.svg.selectAll('.borough-num')
-          .data(londonBoroughs)
-          .enter()
-          .append('text')
+        group.append('text')
             .attr('id', d => 'borough-num-'+d.nameShort)
             .attr('class', 'borough-num label')
             .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + boxWidth - shift*2)
             .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + boxWidth - shift*2)
           .text(d => d.casualties);
+
+        group.append('text')
+            .attr('id', d => 'borough-label-'+d.nameShort)
+            .attr('class', 'borough-label label')
+            .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + shift*2)
+            .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + shift*5)
+          .text(d => d.nameShort.toUpperCase());
+
       }
 
-      boroughVis.update(data);
-
-      boroughVis.svg.selectAll('.borough-label')
-        .data(londonBoroughs)
-        .enter()
-        .append('text')
-          .attr('id', d => 'borough-label-'+d.nameShort)
-          .attr('class', 'borough-label label')
-          .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + shift*2)
-          .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + shift*5)
-        .text(d => d.nameShort.toUpperCase());
+      boroughVis.update(londonBoroughs);
 
       return boroughVis;
     }
+  }
+
+  function toggleClass(selection, selectClass, classed, toggle) {
+    selection.select(selectClass)
+      .classed(classed, toggle);
   }
 
   function appendBackground(svg, width, height) {
