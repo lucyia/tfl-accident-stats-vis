@@ -36,13 +36,15 @@ function createVis(data) {
 
   // vis panel attr
   var width = 400;
-  var height = 400;
+  var height = 300;
 
   var t = d3.transition(t).duration(2000);
 
   var boroughVis = createBoroughVis(data);
   var vehicleVis = createVehicleVis(data);
   var ageVis = createAgeVis(data);
+
+  createMapVis(data);
 
   function updateAllVis(type = undefined, value) {
 
@@ -163,13 +165,81 @@ function createVis(data) {
         ]
       }
     ]
+
+    var mapElem = d3.select('#map')
+      .attr('width', window.innerWidth+'px')
+      .attr('height', window.innerHeight+'px');
+
+    var map = new google.maps.Map(d3.select('#map').node(), {
+      zoom: 13,
+      center: new google.maps.LatLng(51.5, -0.11),
+      mapTypeId: google.maps.MapTypeId.TERRAIN,
+      zoomControl: false,
+      mapTypeControl: false,
+      scaleControl: false,
+      streetViewControl: false,
+      rotateControl: false,
+      fullscreenControl: false,
+      styles: options
+    });
+
+    var severityColor = d3.scaleOrdinal()
+      .domain(severityTypes)
+      .range(['#98abc5', '#7b6888', '#ff8c00']);
+
+    var overlay = new google.maps.OverlayView();
+
+    /**
+     * Code taken from Mike Bostock, see https://gist.github.com/mbostock/899711
+     */
+    overlay.onAdd = function () {
+      var layer = d3.select(this.getPanes().overlayLayer).append('div')
+        .attr('class', 'casualties-map');
+
+      overlay.draw = function () {
+        var projection = this.getProjection();
+        var padding = 10;
+
+        var marker = layer.selectAll('svg')
+          .data(data)
+          .each(transform)
+          .enter()
+          .append('svg')
+            .each(transform)
+            .attr('class', 'marker');
+
+        marker.append('circle')
+          .attr('r', 5)
+          .attr('cx', padding)
+          .attr('cy', padding)
+          .attr('fill', d => severityColor(d.severity));
+
+        // marker.append('text')
+        //   .attr('x', padding + 10)
+        //   .attr('y', padding)
+        //   .attr('dy', '.5em')
+        //   .attr('fill', 'yellow')
+        //   .text(d => d.location);
+
+        function transform(d) {
+          d = new google.maps.LatLng(d.lat, d.lon);
+          d = projection.fromLatLngToDivPixel(d);
+
+          return d3.select(this)
+            .style('left', (d.x - padding) + 'px')
+            .style('top', (d.y - padding) + 'px');
+        }
+      };
+    };
+
+    overlay.setMap(map);
   }
 
   function createAgeVis(data) {
 
     var ageVis = {};
 
-    ageVis.vis = createHorBarVis(prepareData(data), 'vis-age', 8*30, false);
+    ageVis.vis = createHorBarVis(prepareData(data), 'vis-age', 8*22, false);
 
     ageVis.update = data => ageVis.vis.update(prepareData(data));
 
@@ -209,7 +279,7 @@ function createVis(data) {
 
     var vehicleVis = {};
 
-    vehicleVis.vis = createHorBarVis(preprocessData(data), 'vis-vehicles', 11*30, true);
+    vehicleVis.vis = createHorBarVis(preprocessData(data), 'vis-vehicles', 11*22, true);
 
     vehicleVis.update = data => vehicleVis.vis.update(preprocessData(data));
 
@@ -380,7 +450,8 @@ function createVis(data) {
 
     appendBackground(horBarVis.svg, visWidth, visHeight);
 
-    var xAxis = d3.axisTop(xScale).ticks('4');
+    var xAxis = d3.axisTop(xScale)
+      .ticks('4');
 
     horBarVis.svg.append('g')
         .attr('class', 'axis axis--x')
@@ -482,6 +553,43 @@ function createVis(data) {
     var visWidth = width - margin*2;
     var visHeight = height - margin*2;
 
+    var londonBoroughs = [
+      { pos: [-10, -10], nameShort: 'bug', name: 'dummy element'      }, // known bug: updated selection for generating vis ignores the first element
+      { pos: [7, 3], nameShort: 'bar', name: 'Barking and Dagenham'   },
+      { pos: [3, 1], nameShort: 'brn', name: 'Barnet'                 },
+      { pos: [7, 4], nameShort: 'bxl', name: 'Bexley'                 },
+      { pos: [2, 2], nameShort: 'brt', name: 'Brent'                  },
+      { pos: [5, 5], nameShort: 'brm', name: 'Bromley'                },
+      { pos: [3, 2], nameShort: 'cmd', name: 'Camden'                 },
+      { pos: [4, 3], nameShort: 'cty', name: 'City of London'         },
+      { pos: [4, 5], nameShort: 'crd', name: 'Croydon'                },
+      { pos: [1, 2], nameShort: 'elg', name: 'Ealing'                 },
+      { pos: [4, 0], nameShort: 'enf', name: 'Enfield'                },
+      { pos: [6, 4], nameShort: 'grn', name: 'Greenwich'              },
+      { pos: [5, 2], nameShort: 'hck', name: 'Hackney'                },
+      { pos: [1, 3], nameShort: 'hms', name: 'Hammersmith and Fulham' },
+      { pos: [4, 1], nameShort: 'hgy', name: 'Haringey'               },
+      { pos: [2, 1], nameShort: 'hrw', name: 'Harrow'                 },
+      { pos: [7, 2], nameShort: 'hvg', name: 'Havering'               },
+      { pos: [0, 2], nameShort: 'hdn', name: 'Hillingdon'             },
+      { pos: [0, 3], nameShort: 'hns', name: 'Hounslow'               },
+      { pos: [4, 2], nameShort: 'isl', name: 'Islington'              },
+      { pos: [2, 3], nameShort: 'kns', name: 'Kensington and Chelsea' },
+      { pos: [2, 5], nameShort: 'kng', name: 'Kingston'               },
+      { pos: [3, 4], nameShort: 'lam', name: 'Lambeth'                },
+      { pos: [5, 4], nameShort: 'lsh', name: 'Lewisham'               },
+      { pos: [3, 5], nameShort: 'mrt', name: 'Merton'                 },
+      { pos: [6, 3], nameShort: 'nwm', name: 'Newham'                 },
+      { pos: [6, 2], nameShort: 'rdb', name: 'Redbridge'              },
+      { pos: [1, 4], nameShort: 'rch', name: 'Richmond upon Thames'   },
+      { pos: [4, 4], nameShort: 'swr', name: 'Southwark'              },
+      { pos: [3, 6], nameShort: 'stn', name: 'Sutton'                 },
+      { pos: [5, 3], nameShort: 'tow', name: 'Tower Hamlets'          },
+      { pos: [5, 1], nameShort: 'wth', name: 'Waltham Forest'         },
+      { pos: [2, 4], nameShort: 'wns', name: 'Wandsworth'             },
+      { pos: [3, 3], nameShort: 'wst', name: 'City of Westminster'    }
+    ];
+
     boroughVis.vis = createVis(preprocessData(data), 'vis-boroughs');
 
     boroughVis.update = data => boroughVis.vis.update(preprocessData(data));
@@ -489,43 +597,6 @@ function createVis(data) {
     return boroughVis;
 
     function preprocessData(data) {
-
-      var londonBoroughs = [
-        { pos: [-10, -10], nameShort: 'bug', name: 'dummy element'      }, // known bug: updated selection for generating vis ignores the first element
-        { pos: [7, 3], nameShort: 'bar', name: 'Barking and Dagenham'   },
-        { pos: [3, 1], nameShort: 'brn', name: 'Barnet'                 },
-        { pos: [7, 4], nameShort: 'bxl', name: 'Bexley'                 },
-        { pos: [2, 2], nameShort: 'brt', name: 'Brent'                  },
-        { pos: [5, 5], nameShort: 'brm', name: 'Bromley'                },
-        { pos: [3, 2], nameShort: 'cmd', name: 'Camden'                 },
-        { pos: [4, 3], nameShort: 'cty', name: 'City of London'         },
-        { pos: [4, 5], nameShort: 'crd', name: 'Croydon'                },
-        { pos: [1, 2], nameShort: 'elg', name: 'Ealing'                 },
-        { pos: [4, 0], nameShort: 'enf', name: 'Enfield'                },
-        { pos: [6, 4], nameShort: 'grn', name: 'Greenwich'              },
-        { pos: [5, 2], nameShort: 'hck', name: 'Hackney'                },
-        { pos: [1, 3], nameShort: 'hms', name: 'Hammersmith and Fulham' },
-        { pos: [4, 1], nameShort: 'hgy', name: 'Haringey'               },
-        { pos: [2, 1], nameShort: 'hrw', name: 'Harrow'                 },
-        { pos: [7, 2], nameShort: 'hvg', name: 'Havering'               },
-        { pos: [0, 2], nameShort: 'hdn', name: 'Hillingdon'             },
-        { pos: [0, 3], nameShort: 'hns', name: 'Hounslow'               },
-        { pos: [4, 2], nameShort: 'isl', name: 'Islington'              },
-        { pos: [2, 3], nameShort: 'kns', name: 'Kensington and Chelsea' },
-        { pos: [2, 5], nameShort: 'kng', name: 'Kingston'               },
-        { pos: [3, 4], nameShort: 'lam', name: 'Lambeth'                },
-        { pos: [5, 4], nameShort: 'lsh', name: 'Lewisham'               },
-        { pos: [3, 5], nameShort: 'mrt', name: 'Merton'                 },
-        { pos: [6, 3], nameShort: 'nwm', name: 'Newham'                 },
-        { pos: [6, 2], nameShort: 'rdb', name: 'Redbridge'              },
-        { pos: [1, 4], nameShort: 'rch', name: 'Richmond upon Thames'   },
-        { pos: [4, 4], nameShort: 'swr', name: 'Southwark'              },
-        { pos: [3, 6], nameShort: 'stn', name: 'Sutton'                 },
-        { pos: [5, 3], nameShort: 'tow', name: 'Tower Hamlets'          },
-        { pos: [5, 1], nameShort: 'wth', name: 'Waltham Forest'         },
-        { pos: [2, 4], nameShort: 'wns', name: 'Wandsworth'             },
-        { pos: [3, 3], nameShort: 'wst', name: 'City of Westminster'    }
-      ];
 
       londonBoroughs.forEach( borough => {
         var casualties = 0;
@@ -547,7 +618,7 @@ function createVis(data) {
       var boroughVis = {};
 
       var boxWidth = (visWidth <= visHeight) ? (visWidth / 8.5) : (visHeight / 7.5);
-      var shift = boxWidth / 17;
+      var shift = boxWidth / 20;
 
       var casualtiesScale = d3.scaleLinear()
         .domain(d3.extent(londonBoroughs.map(d => d.casualties)))
@@ -614,13 +685,15 @@ function createVis(data) {
             .attr('class', 'borough-num label')
             .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + boxWidth - shift*2)
             .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + boxWidth - shift*2)
+            .style('font-size', d => (boxWidth < 45) ? '10px' : '13px' )
           .text(d => d.casualties);
 
         group.append('text')
             .attr('id', d => 'borough-label-'+d.nameShort)
             .attr('class', 'borough-label label')
             .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + shift*2)
-            .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + shift*5)
+            .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + shift*6)
+            .style('font-size', d => (boxWidth < 45) ? '10px' : '13px' )
           .text(d => d.nameShort.toUpperCase());
 
       }
