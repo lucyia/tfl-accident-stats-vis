@@ -38,8 +38,6 @@ function createVis(data) {
   var width = 400;
   var height = 300;
 
-  var updatedData = data;
-
   var t = d3.transition(t).duration(2000);
 
   var boroughVis = createBoroughVis(data);
@@ -54,7 +52,7 @@ function createVis(data) {
   function updateAllVis(type = undefined, value) {
 
     // reset data
-    var updatedData = data;
+    var filteredData = data;
 
     if (type) {
       // update value of changed filter
@@ -67,26 +65,26 @@ function createVis(data) {
     }
 
     // filter severity
-    updatedData = updatedData.filter(d => filter.severity.indexOf(d.severity) !== -1 );
+    filteredData = filteredData.filter(d => filter.severity.indexOf(d.severity) !== -1 );
     // filter age
-    updatedData = (filter.age.length > 2) ? updatedData : filterAge(updatedData);
+    filteredData = (filter.age.length > 2) ? filteredData : filterAge(filteredData);
     // filter mode
-    updatedData = (typeof filter.mode === 'object') ? updatedData : filterMode(updatedData);
+    filteredData = (typeof filter.mode === 'object') ? filteredData : filterMode(filteredData);
 
     if (type !== 'borough') {
-      boroughVis.update(updatedData);
+      boroughVis.update(filteredData);
     }
 
     // lastly update data according to the selected borough
-    updatedData = (typeof filter.borough === 'object') ? updatedData : updatedData.filter(d => filter.borough === d.borough);
+    filteredData = (typeof filter.borough === 'object') ? filteredData : filteredData.filter(d => filter.borough === d.borough);
 
-    ageVis.update(updatedData);
-    modeVis.update(updatedData);
+    ageVis.update(filteredData);
+    modeVis.update(filteredData);
 
-    function filterAge(updatedData) {
-      var filteredData = [];
+    function filterAge(filteredData) {
+      var filteredAgeData = [];
 
-      updatedData.forEach( d => {
+      filteredData.forEach( d => {
         var found = false;
 
         d.casualties.forEach( casualty => {
@@ -96,17 +94,17 @@ function createVis(data) {
         });
 
         if (found) {
-          filteredData.push(d);
+          filteredAgeData.push(d);
         }
       });
 
-      return filteredData;
+      return filteredAgeData;
     }
 
-    function filterMode(updatedData) {
-      var filteredData = [];
+    function filterMode(filteredData) {
+      var filteredModeData = [];
 
-      updatedData.forEach( d => {
+      filteredData.forEach( d => {
         var found = false;
 
         d.vehicles.forEach( vehicle => {
@@ -122,11 +120,11 @@ function createVis(data) {
         });
 
         if (found) {
-          filteredData.push(d);
+          filteredModeData.push(d);
         }
       });
 
-      return filteredData;
+      return filteredModeData;
     }
   }
 
@@ -574,7 +572,7 @@ function createVis(data) {
       .append('g')
         .attr('class', 'g-bar')
         .on('click', function(d) {
-          d3.selectAll('.rect-background')
+          horBarVis.svg.selectAll('.rect-background')
             .classed('rect-selected', false);
 
           toggleClass(d3.select(this), '.rect-background', 'rect-selected', true);
@@ -719,7 +717,7 @@ function createVis(data) {
           .append('g')
             .attr('class', 'g-borough')
           .on('click', function(d) {
-            d3.selectAll('.rect-selected')
+            boroughVis.svg.selectAll('.rect-selected')
               .classed('rect-selected', false);
 
             toggleClass(d3.select(this), '.borough-rect', 'rect-selected', true);
