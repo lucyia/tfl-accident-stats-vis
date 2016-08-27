@@ -45,7 +45,7 @@ function createVis(data) {
   var modeVis = createModeVis(data);
   var severityVis = createSeverityVis(severityTypes);
 
-  //createMapVis(data);
+  createMapVis(data);
 
   var filter = resetFilter();
 
@@ -138,164 +138,114 @@ function createVis(data) {
   }
 
   function createMapVis(data) {
-    var options = [
-      {
-        "featureType": "administrative",
-        "stylers": [
-          { "visibility": "off" }
-        ]
-      },{
-        "featureType": "landscape",
-        "stylers": [
-          { "visibility": "simplified" }
-        ]
-      },{
-        "featureType": "poi",
-        "stylers": [
-          { "visibility": "off" }
-        ]
-      },{
-        "featureType": "poi.park",
-        "stylers": [
-          { "visibility": "simplified" }
-        ]
-      },{
-        "featureType": "transit.line",
-        "stylers": [
-          { "visibility": "off" }
-        ]
-      },{
-        "elementType": "labels.text",
-        "stylers": [
-          { "visibility": "simplified" }
-        ]
-      },{
-        "stylers": [
-          { "invert_lightness": true },
-          { "hue": "#0077ff" }
-        ]
-      },{
-        "featureType": "administrative.locality",
-        "elementType": "labels.text",
-        "stylers": [
-          { "visibility": "off" }
-        ]
-      },{
-        "featureType": "administrative.neighborhood",
-        "stylers": [
-          { "visibility": "simplified" }
-        ]
-      }
-    ]
 
-    var mapElem = d3.select('#map')
-      .attr('width', window.innerWidth+'px')
-      .attr('height', window.innerHeight+'px');
+    var geoJSONdata = format2geoJSON(data);
 
-    var map = new google.maps.Map(d3.select('#map').node(), {
-      zoom: 13,
-      center: new google.maps.LatLng(51.5, -0.11),
-      mapTypeId: google.maps.MapTypeId.TERRAIN,
-      zoomControl: false,
-      mapTypeControl: false,
-      scaleControl: false,
-      streetViewControl: false,
-      rotateControl: false,
-      fullscreenControl: false,
-      styles: options
+    var map = initMap();
+
+    map.data.addGeoJson(geoJSONdata);
+
+    map.data.addListener('click', function(event) {
+      console.log('Casualties: ', event.feature.getProperty('casualties'));
     });
 
-    var severityColor = d3.scaleOrdinal()
-      .domain(severityTypes)
-      .range(['#98abc5', '#7b6888', '#ff8c00']);
+    map.data.setStyle(function(feature) {
+       return ({
+         icon: {
+           path: google.maps.SymbolPath.CIRCLE,
+           scale: 1,
+           fillColor: '#f00',
+           fillOpacity: 0.35,
+           strokeWeight: 0
+         }
+       });
+     });
 
-    var overlay = new google.maps.OverlayView();
-
-    /**
-     * Code taken from Mike Bostock, see https://gist.github.com/mbostock/899711
-     */
-    overlay.onAdd = function () {
-      var layer = d3.select(this.getPanes().overlayLayer).append('div')
-        .attr('class', 'casualties-map');
-
-      overlay.draw = function () {
-        var projection = this.getProjection();
-        var padding = 10;
-
-        var marker = layer.selectAll('svg')
-          .data(data)
-          .each(transform)
-          .enter()
-          .append('svg')
-            .each(transform)
-            .attr('class', 'marker');
-
-        marker.append('circle')
-          .attr('r', 5)
-          .attr('cx', padding)
-          .attr('cy', padding)
-          .attr('fill', d => severityColor(d.severity));
-
-        // marker.append('text')
-        //   .attr('x', padding + 10)
-        //   .attr('y', padding)
-        //   .attr('dy', '.5em')
-        //   .attr('fill', 'yellow')
-        //   .text(d => d.location);
-
-        function transform(d) {
-          d = new google.maps.LatLng(d.lat, d.lon);
-          d = projection.fromLatLngToDivPixel(d);
-
-          return d3.select(this)
-            .style('left', (d.x - padding) + 'px')
-            .style('top', (d.y - padding) + 'px');
+    function format2geoJSON(data) {
+      var features = data.map( (d,i) => {
+        return {
+          "type": "Feature",
+          "properties": {
+            "index": i,
+            "casualties": d.casualties.length
+          },
+          "geometry": {
+            "type": "Point",
+            "coordinates": [d.lon, d.lat]
+          }
         }
+      });
+
+      return {
+        "type": "FeatureCollection",
+        "features": features
       };
-    };
+    }
 
-    overlay.onAdd = function () {
-      var layer = d3.select(this.getPanes().overlayLayer).append('div')
-        .attr('class', 'casualties-map');
-
-      overlay.draw = function () {
-        var projection = this.getProjection();
-        var padding = 10;
-
-        var marker = layer.selectAll('canvas')
-          .data(data)
-          .each(transform)
-          .enter()
-          .append('canvas')
-            .each(transform)
-            .attr('class', 'marker');
-
-        marker.append('circle')
-          .attr('r', 5)
-          .attr('cx', padding)
-          .attr('cy', padding)
-          .attr('fill', d => severityColor(d.severity));
-
-        // marker.append('text')
-        //   .attr('x', padding + 10)
-        //   .attr('y', padding)
-        //   .attr('dy', '.5em')
-        //   .attr('fill', 'yellow')
-        //   .text(d => d.location);
-
-        function transform(d) {
-          d = new google.maps.LatLng(d.lat, d.lon);
-          d = projection.fromLatLngToDivPixel(d);
-
-          return d3.select(this)
-            .style('left', (d.x - padding) + 'px')
-            .style('top', (d.y - padding) + 'px');
+    function initMap() {
+      var options = [
+        {
+          "featureType": "administrative",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "landscape",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "featureType": "poi",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "poi.park",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "featureType": "transit.line",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "elementType": "labels.text",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "stylers": [
+            { "invert_lightness": true },
+            { "hue": "#0077ff" }
+          ]
+        },{
+          "featureType": "administrative.locality",
+          "elementType": "labels.text",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "administrative.neighborhood",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
         }
-      };
-    };
+      ];
 
-
-    overlay.setMap(map);
+      return new google.maps.Map(document.getElementById('map'), {
+        zoom: 13,
+        center: new google.maps.LatLng(51.5, -0.11),
+        mapTypeId: google.maps.MapTypeId.TERRAIN,
+        zoomControl: true,
+        mapTypeControl: false,
+        scaleControl: true,
+        streetViewControl: false,
+        rotateControl: false,
+        fullscreenControl: false,
+        styles: options
+      });
+    }
   }
 
   function createAgeVis(data) {
