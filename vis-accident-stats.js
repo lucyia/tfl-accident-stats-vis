@@ -38,81 +38,105 @@ function createVis(data) {
   var width = 400;
   var height = 300;
 
+  var updatedData = data;
+
   var t = d3.transition(t).duration(2000);
 
   var boroughVis = createBoroughVis(data);
-  var vehicleVis = createVehicleVis(data);
   var ageVis = createAgeVis(data);
+  var modeVis = createModeVis(data);
+  var severityVis = createSeverityVis(severityTypes);
 
-  createMapVis(data);
+  //createMapVis(data);
+
+  var filter = resetFilter();
 
   function updateAllVis(type = undefined, value) {
 
+    // reset data
     var updatedData = data;
 
-    switch (type) {
-      case 'borough':
-        updatedData = updatedData.filter(d => d.borough === value);
-        ageVis.update(updatedData);
-        vehicleVis.update(updatedData);
-        break;
-      case 'age':
-        var filteredData = [];
-        updatedData.forEach( d => {
-          var found = false;
-
-          d.casualties.forEach( casualty => {
-            if (casualty.age >= value[0] && casualty.age <= value[1]) {
-              found = true;
-            }
-          });
-
-          if (found) {
-            filteredData.push(d);
-          }
-        });
-        updatedData = filteredData;
-
-        ageVis.update(updatedData);
-        vehicleVis.update(updatedData);
-        boroughVis.update(updatedData);
-        break;
-      case 'mode':
-        var filteredData = [];
-        updatedData.forEach( d => {
-          var found = false;
-
-          d.vehicles.forEach( vehicle => {
-            if (vehicle.type === value) {
-              found = true;
-            }
-          });
-
-          d.casualties.forEach( casualty => {
-            if (value === 'Pedestrian' && casualty.mode === value) {
-              found = true;
-            }
-          });
-
-          if (found) {
-            filteredData.push(d);
-          }
-        });
-        updatedData = filteredData;
-
-        ageVis.update(updatedData);
-        vehicleVis.update(updatedData);
-        boroughVis.update(updatedData);
-        break;
-      case undefined:
-        d3.selectAll('.rect-selected')
-          .classed('rect-selected', false);
-
-        ageVis.update(updatedData);
-        vehicleVis.update(updatedData);
-        boroughVis.update(updatedData);
-        break;
+    if (type) {
+      // update value of changed filter
+      filter[type] = value;
+    } else {
+      // reset all values
+      filter = resetFilter();
+      severityVis.resetAll();
+      d3.selectAll('.rect-selected').classed('rect-selected', false);
     }
+
+    // filter severity
+    updatedData = updatedData.filter(d => filter.severity.indexOf(d.severity) !== -1 );
+    // filter age
+    updatedData = (filter.age.length > 2) ? updatedData : filterAge(updatedData);
+    // filter mode
+    updatedData = (typeof filter.mode === 'object') ? updatedData : filterMode(updatedData);
+
+    if (type !== 'borough') {
+      boroughVis.update(updatedData);
+    }
+
+    // lastly update data according to the selected borough
+    updatedData = (typeof filter.borough === 'object') ? updatedData : updatedData.filter(d => filter.borough === d.borough);
+
+    ageVis.update(updatedData);
+    modeVis.update(updatedData);
+
+    function filterAge(updatedData) {
+      var filteredData = [];
+
+      updatedData.forEach( d => {
+        var found = false;
+
+        d.casualties.forEach( casualty => {
+          if (casualty.age >= filter.age[0] && casualty.age <= filter.age[1]) {
+            found = true;
+          }
+        });
+
+        if (found) {
+          filteredData.push(d);
+        }
+      });
+
+      return filteredData;
+    }
+
+    function filterMode(updatedData) {
+      var filteredData = [];
+
+      updatedData.forEach( d => {
+        var found = false;
+
+        d.vehicles.forEach( vehicle => {
+          if (vehicle.type === filter.mode) {
+            found = true;
+          }
+        });
+
+        d.casualties.forEach( casualty => {
+          if (value === 'Pedestrian' && casualty.mode === filter.mode) {
+            found = true;
+          }
+        });
+
+        if (found) {
+          filteredData.push(d);
+        }
+      });
+
+      return filteredData;
+    }
+  }
+
+  function resetFilter() {
+    return {
+      severity: severityVis.severityTypes,
+      borough: boroughVis.londonBoroughs,
+      age: ageVis.ageBands,
+      mode: modeVis.modeTypes
+    };
   }
 
   function createMapVis(data) {
@@ -232,12 +256,55 @@ function createVis(data) {
       };
     };
 
+    overlay.onAdd = function () {
+      var layer = d3.select(this.getPanes().overlayLayer).append('div')
+        .attr('class', 'casualties-map');
+
+      overlay.draw = function () {
+        var projection = this.getProjection();
+        var padding = 10;
+
+        var marker = layer.selectAll('canvas')
+          .data(data)
+          .each(transform)
+          .enter()
+          .append('canvas')
+            .each(transform)
+            .attr('class', 'marker');
+
+        marker.append('circle')
+          .attr('r', 5)
+          .attr('cx', padding)
+          .attr('cy', padding)
+          .attr('fill', d => severityColor(d.severity));
+
+        // marker.append('text')
+        //   .attr('x', padding + 10)
+        //   .attr('y', padding)
+        //   .attr('dy', '.5em')
+        //   .attr('fill', 'yellow')
+        //   .text(d => d.location);
+
+        function transform(d) {
+          d = new google.maps.LatLng(d.lat, d.lon);
+          d = projection.fromLatLngToDivPixel(d);
+
+          return d3.select(this)
+            .style('left', (d.x - padding) + 'px')
+            .style('top', (d.y - padding) + 'px');
+        }
+      };
+    };
+
+
     overlay.setMap(map);
   }
 
   function createAgeVis(data) {
 
     var ageVis = {};
+
+    ageVis.ageBands = [ [0, 4], [5, 11], [12, 17], [18, 24], [25, 34], [35, 49], [50, 74], [75, 100] ];
 
     ageVis.vis = createHorBarVis(prepareData(data), 'vis-age', 8*22, false);
 
@@ -246,22 +313,20 @@ function createVis(data) {
     return ageVis;
 
     function prepareData(data) {
-      var ageBands = [
-        { type: [0, 4], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [5, 11], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [12, 17], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [18, 24], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [25, 34], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [35, 49], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [50, 74], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 },
-        { type: [75, 100], groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 }
-      ];
+
+      var ageBands = ageVis.ageBands.map( band => {
+        return {type: band, groupType: 'age', Fatal: 0, Severe: 0, Slight: 0, total: 0 };
+      });
+
+      var dataSeverityTypes = Array.from( new Set( data.map( d => d.severity ) ) ).sort();
 
       data.forEach( data => {
         ageBands.forEach( bandObj => {
           data.casualties.forEach( casualty => {
             if (casualty.age >= bandObj.type[0] && casualty.age <= bandObj.type[1]) {
-              bandObj[casualty.severity] += 1;
+              if (dataSeverityTypes.indexOf(casualty.severity) !== -1) {
+                bandObj[casualty.severity] += 1;
+              }
             }
           });
         });
@@ -275,15 +340,17 @@ function createVis(data) {
     }
   }
 
-  function createVehicleVis(data) {
+  function createModeVis(data) {
 
-    var vehicleVis = {};
+    var modeVis = {};
 
-    vehicleVis.vis = createHorBarVis(preprocessData(data), 'vis-vehicles', 11*22, true);
+    modeVis.modeTypes;
 
-    vehicleVis.update = data => vehicleVis.vis.update(preprocessData(data));
+    modeVis.vis = createHorBarVis(preprocessData(data), 'vis-vehicles', 11*22, true);
 
-    return vehicleVis;
+    modeVis.update = data => modeVis.vis.update(preprocessData(data));
+
+    return modeVis;
 
     function preprocessData(data) {
       // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
@@ -294,9 +361,9 @@ function createVis(data) {
         } );
       } ) );
 
-      var trafficModeTypes = Array.from( new Set( allTrafficModes ) ).sort();
+      modeVis.modeTypes = Array.from( new Set( allTrafficModes ) ).sort();
 
-      var trafficCasualties = trafficModeTypes.map( vehicleType  => {
+      var trafficCasualties = modeVis.modeTypes.map( vehicleType  => {
         var obj = {};
 
         obj.Slight = 0;
@@ -459,7 +526,11 @@ function createVis(data) {
 
     horBarVis.update = function(data) {
 
-      xScale.domain([1, d3.max(data, d => d.total)]).nice();
+      var max = d3.max(data, d => d.total);
+      xScale.domain([0, max]).nice();
+
+      var ticks = (max <= 5) ? (max <= 1 ? '1' : '2') : '4';
+      xAxis.ticks(ticks);
 
       horBarVis.svg.select('.axis--x')
         .transition()
@@ -468,14 +539,11 @@ function createVis(data) {
       var bars = horBarVis.svg.selectAll('.serie')
         .data(stack.keys(severityTypes)(data), d => d);
 
-      bars.exit()
-        .transition(t)
-          .attr('width', 0)
-          .remove();
-
-      bars.style('fill-opacity', 1)
+      bars.selectAll('rect')
         .transition()
-        .attr('width', d => xScale(d[1]) - xScale(d[0]));
+        .style('fill-opacity', 1)
+        .attr('x', d => Math.max(shift, xScale(d[0])))
+        .attr('width', d => (xScale(d[1]) - xScale(d[0]) === 0) ? 0 : Math.max(1, xScale(d[1]) - xScale(d[0])))
 
       bars.enter()
         .append('g')
@@ -490,8 +558,13 @@ function createVis(data) {
             .attr('x', d => Math.max(shift, xScale(d[0])))
             .attr('height', yScale.bandwidth())
           .transition(t)
-            .attr('width', d => Math.max(1, xScale(d[1]) - xScale(d[0])))
+            .attr('width', d => (xScale(d[1]) - xScale(d[0]) === 0) ? 0 : Math.max(1, xScale(d[1]) - xScale(d[0])))
             .style('fill-opacity', 1);
+
+      bars.exit()
+        .transition(t)
+          .attr('width', 0)
+          .remove();
     };
 
     var groupData = horBarVis.svg.selectAll('.g-bar')
@@ -589,6 +662,8 @@ function createVis(data) {
       { pos: [2, 4], nameShort: 'wns', name: 'Wandsworth'             },
       { pos: [3, 3], nameShort: 'wst', name: 'City of Westminster'    }
     ];
+
+    boroughVis.londonBoroughs = londonBoroughs;
 
     boroughVis.vis = createVis(preprocessData(data), 'vis-boroughs');
 
@@ -720,4 +795,61 @@ function createVis(data) {
       .on('click', () => updateAllVis());
   }
 
+  function createSeverityVis(types) {
+
+    var severityVis = {};
+
+    var severityTypes = types.map( d => {
+      return { type: d, selected: true };
+    });
+
+    var boxWidth = 20;
+
+    var severityColor = d3.scaleOrdinal()
+      .domain(types)
+      .range(['#98abc5', '#7b6888', '#ff8c00']);
+
+    var svg = d3.select('#options-severity')
+      .append('svg')
+        .attr('width', 300)
+        .attr('height', 30);
+
+    var options = svg.selectAll('.option-severity')
+      .data(severityTypes)
+      .enter()
+      .append('rect')
+        .attr('class', 'option-severity')
+        .attr('x', (d, i) => i*80 + boxWidth)
+        .attr('y', 5)
+        .attr('width', boxWidth)
+        .attr('height', boxWidth)
+        .attr('stroke', d => severityColor(d.type))
+        .attr('stroke-width', 5)
+        .attr('fill', d => severityColor(d.type))
+      .on('click', function(d) {
+        d3.select(this).attr('fill', () => d.selected ? 'transparent' : severityColor(d.type));
+        d.selected = !d.selected;
+        updateAllVis('severity', severityTypes.filter(d => d.selected).map(d => d.type));
+      });
+
+    var labels = svg.selectAll('.label-severity')
+      .data(types)
+      .enter()
+      .append('text')
+        .attr('class', 'label label-severity')
+        .attr('x', (d, i) => i*80 + boxWidth*2 + 10)
+        .attr('y', 20)
+        .text(d => d);
+
+    severityVis.severityTypes = types;
+
+    severityVis.resetAll = () => {
+      options.each(function(d) {
+        d3.select(this).attr('fill', severityColor(d.type));
+        d.selected = true;
+      });
+    };
+
+    return severityVis;
+  }
 }
