@@ -45,7 +45,8 @@ function createVis(data) {
   var modeVis = createModeVis(data);
   var severityVis = createSeverityVis(severityTypes);
 
-  createMapVis(data);
+  //createMapVis(data);
+  createWebGLMapVis(data);
 
   var filter = resetFilter();
 
@@ -246,6 +247,115 @@ function createVis(data) {
         styles: options
       });
     }
+  }
+
+  function createWebGLMapVis(data) {
+    var map;
+    var myLayer;
+
+    var geoJSONdata = format2geoJSON(data);
+
+    initMap();
+
+    function format2geoJSON(data) {
+      var features = data.map( (d,i) => {
+        return {
+          "type": "Feature",
+          "properties": {
+            "index": i,
+            "casualties": d.casualties.length
+          },
+          "geometry": {
+            "type": "Point",
+            "coordinates": [d.lon, d.lat]
+          }
+        }
+      });
+
+      return {
+        "type": "FeatureCollection",
+        "features": features
+      };
+    }
+
+    function initMap() {
+      var options = [
+        {
+          "featureType": "administrative",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "landscape",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "featureType": "poi",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "poi.park",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "featureType": "transit.line",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "elementType": "labels.text",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "stylers": [
+            { "invert_lightness": true },
+            { "hue": "#0077ff" }
+          ]
+        },{
+          "featureType": "administrative.locality",
+          "elementType": "labels.text",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "administrative.neighborhood",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        }
+      ];
+
+      var mapOptions = {
+        zoom: 13,
+        center: new google.maps.LatLng(51.5, -0.11),
+        mapTypeId: google.maps.MapTypeId.TERRAIN,
+        zoomControl: true,
+        mapTypeControl: false,
+        scaleControl: true,
+        streetViewControl: false,
+        rotateControl: false,
+        fullscreenControl: false,
+        styles: options
+      };
+
+      var mapCanvas = document.getElementById('map');
+      map = new google.maps.Map(mapCanvas, mapOptions);
+
+      map.addListener('click', function(event) {
+        console.log('Casualties: ', event);
+      });
+
+      var myLayer = new WebGLLayer(map);
+
+      myLayer.loadData(geoJSONdata);
+
+      myLayer.start();
+    }
+
   }
 
   function createAgeVis(data) {
