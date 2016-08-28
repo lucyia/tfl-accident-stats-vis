@@ -46,7 +46,9 @@ function createVis(data) {
   var severityVis = createSeverityVis(severityTypes);
 
   //createMapVis(data);
-  createWebGLMapVis(data);
+  //createWebGLMapVis(data);
+  //createCanvasLayerMapVis(data);
+  createPaperMapVis(data);
 
   var filter = resetFilter();
 
@@ -240,7 +242,7 @@ function createVis(data) {
         mapTypeId: google.maps.MapTypeId.TERRAIN,
         zoomControl: true,
         mapTypeControl: false,
-        scaleControl: true,
+        scaleControl: false,
         streetViewControl: false,
         rotateControl: false,
         fullscreenControl: false,
@@ -355,6 +357,261 @@ function createVis(data) {
 
       myLayer.start();
     }
+
+  }
+
+  function createCanvasLayerMapVis(data) {
+    var map;
+    var canvasLayer;
+    var context;
+    var rectLatLng = new google.maps.LatLng(40, -95);
+    var rectWidth = 6.5;
+    var resolutionScale = window.devicePixelRatio || 1;
+
+    init();
+
+    function init() {
+      // initialize the map
+      var mapOptions = {
+        zoom: 4,
+        center: new google.maps.LatLng(39.3, -95.8),
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        styles: [
+          {
+            stylers: [{saturation: -85}]
+          }, {
+            featureType: "water",
+            elementType: "geometry",
+            stylers: [
+              { lightness: -20 }
+            ]
+          }
+        ]
+      };
+
+      var mapDiv = document.getElementById('map');
+      map = new google.maps.Map(mapDiv, mapOptions);
+
+      // initialize the canvasLayer
+      var canvasLayerOptions = {
+        map: map,
+        resizeHandler: resize,
+        animate: false,
+        updateHandler: update,
+        resolutionScale: resolutionScale
+      };
+
+      canvasLayer = new CanvasLayer(canvasLayerOptions);
+      context = canvasLayer.canvas.getContext('2d');
+
+    }
+
+    function resize() {
+      // nothing to do here
+    }
+
+    function update() {
+      // clear previous canvas contents
+      var canvasWidth = canvasLayer.canvas.width;
+      var canvasHeight = canvasLayer.canvas.height;
+
+      context.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      // we like our rectangles hideous
+      context.fillStyle = 'rgba(255, 255, 26, 1)';
+
+      /* We need to scale and translate the map for current view.
+       * see https://developers.google.com/maps/documentation/javascript/maptypes#MapCoordinates
+       */
+      var mapProjection = map.getProjection();
+
+      /**
+       * Clear transformation from last update by setting to identity matrix.
+       * Could use context.resetTransform(), but most browsers don't support
+       * it yet.
+       */
+      context.setTransform(1, 0, 0, 1, 0, 0);
+
+      // scale is just 2^zoom
+      // If canvasLayer is scaled (with resolutionScale), we need to scale by
+      // the same amount to account for the larger canvas.
+      var scale = Math.pow(2, map.zoom) * resolutionScale;
+      context.scale(scale, scale);
+
+      /* If the map was not translated, the topLeft corner would be 0,0 in
+       * world coordinates. Our translation is just the vector from the
+       * world coordinate of the topLeft corder to 0,0.
+       */
+      var offset = mapProjection.fromLatLngToPoint(canvasLayer.getTopLeft());
+      context.translate(-offset.x, -offset.y);
+      // project rectLatLng to world coordinates and draw
+      var worldPoint = mapProjection.fromLatLngToPoint(rectLatLng);
+
+      context.fillRect(worldPoint.x, worldPoint.y, rectWidth, rectWidth);
+    }
+  }
+
+  function createPaperMapVis(data) {
+
+    paper.install(window);
+
+    var overlay;
+    accidentsOverlay.prototype = new google.maps.OverlayView();
+
+    initMap();
+
+    function initMap() {
+      var options = [
+        {
+          "featureType": "administrative",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "landscape",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "featureType": "poi",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "poi.park",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "featureType": "transit.line",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "elementType": "labels.text",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        },{
+          "stylers": [
+            { "invert_lightness": true },
+            { "hue": "#0077ff" }
+          ]
+        },{
+          "featureType": "administrative.locality",
+          "elementType": "labels.text",
+          "stylers": [
+            { "visibility": "off" }
+          ]
+        },{
+          "featureType": "administrative.neighborhood",
+          "stylers": [
+            { "visibility": "simplified" }
+          ]
+        }
+      ];
+
+      var map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 13,
+        center: new google.maps.LatLng(51.5, -0.11),
+        mapTypeId: google.maps.MapTypeId.TERRAIN,
+        zoomControl: true,
+        mapTypeControl: false,
+        scaleControl: false,
+        streetViewControl: false,
+        rotateControl: false,
+        fullscreenControl: false,
+        styles: options
+      });
+
+      var bounds = new google.maps.LatLngBounds(
+          new google.maps.LatLng(50.5, -1.0),
+          new google.maps.LatLng(52.5, 1.0));
+
+      overlay = new accidentsOverlay(map, bounds);
+
+    }
+
+    function accidentsOverlay(map, bounds) {
+
+      this.map_ = map;
+      this.bounds_ = bounds;
+
+      this.div_ = null;
+
+      this.setMap(map);
+
+      this.bounds_ = new google.maps.LatLngBounds(
+          new google.maps.LatLng(50.5, -1.0),
+          new google.maps.LatLng(52.5, 1.0));
+    }
+
+    accidentsOverlay.prototype.onAdd = function() {
+
+      var canvas = document.createElement('canvas');
+      canvas.setAttribute('id', 'canvas-map');
+      canvas.setAttribute('time', Date.now());
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.position = 'absolute';
+      canvas.style.left = '0';
+      canvas.style.top = '0';
+
+      paper.setup(canvas);
+
+      this.div_ = canvas;
+
+      var panes = this.getPanes();
+      panes.overlayMouseTarget.appendChild(canvas);
+
+    };
+
+    accidentsOverlay.prototype.draw = function() {
+
+      project.activeLayer.removeChildren();
+
+      var path = new Path.Circle(new Point(20, 20), 5);
+      path.style = {
+      	strokeColor: 'red',
+        fillColor: 'red'
+      };
+
+      var symbol = new Symbol(path);
+
+      var points = data.map( (d,i) => {
+        var point = this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(d.lat, d.lon));
+
+        return {
+          x: point.x,
+          y: point.y,
+          name: 'accident-'+i
+        }
+      });
+
+      points.forEach( function(point){
+      	var position = new Point(point.x, point.y);
+      	var placed = symbol.place(position);
+
+      	placed.onMouseDown = function(event) {
+      		console.log(event, this, point.name);
+      	}
+
+        placed.onMouseEnter = function(event) {
+          placed.scale(2, position);
+        }
+
+        placed.onMouseLeave = function(event) {
+          placed.scale(0.5, position);
+        }
+      });
+
+      paper.view.draw();
+    };
+
+    accidentsOverlay.prototype.onRemove = function() {
+      this.div_.parentNode.removeChild(this.div_);
+      this.div_ = null;
+    };
 
   }
 
