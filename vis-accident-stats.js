@@ -45,14 +45,18 @@ function createVis(data) {
   // initially show only first two sections
   var initialData = data.filter(d => d.severity === 'Fatal' || d.severity === 'Severe');
 
-  var boroughVis = createBoroughVis(data);
-  var ageVis = createAgeVis(data);
-  var modeVis = createModeVis(data);
+  var boroughVis = createBoroughVis(initialData);
+  var ageVis = createAgeVis(initialData);
+  var modeVis = createModeVis(initialData);
   var severityVis = createSeverityVis(severityTypes);
+  var map = createMapVis(initialData.sort((pre,cur) => pre.severity === cur.severity ? (cur.casualties.length-pre.casualties.length) : (pre.severity < cur.severity ? -1 : 1)));
 
-  var map = createMapVis(data.sort((pre,cur) => pre.severity === cur.severity ? (cur.casualties.length-pre.casualties.length) : (pre.severity < cur.severity ? -1 : 1)));
-
-  var filter = resetFilter();
+  var filter = {
+    severity: ['Fatal', 'Severe'],   // initially only two severity types
+    borough: boroughVis.londonBoroughs,
+    age: ageVis.ageBands,
+    mode: modeVis.modeTypes
+  };
 
   function updateAllVis(type = undefined, value) {
 
@@ -1182,7 +1186,11 @@ function createVis(data) {
     var severityVis = {};
 
     var severityTypes = types.map( d => {
-      return { type: d, selected: true };
+      if (d === 'Slight') {
+        return { type: d, selected: false };
+      } else {
+        return { type: d, selected: true };
+      }
     });
 
     var boxWidth = 20;
@@ -1207,7 +1215,7 @@ function createVis(data) {
         .attr('height', boxWidth)
         .attr('stroke', d => severityColor(d.type))
         .attr('stroke-width', 5)
-        .attr('fill', d => severityColor(d.type))
+        .attr('fill', d => d.selected ? severityColor(d.type) : 'transparent')
       .on('click', function(d) {
         d3.select(this).attr('fill', () => d.selected ? 'transparent' : severityColor(d.type));
         d.selected = !d.selected;
