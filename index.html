@@ -53,8 +53,17 @@
         stroke: transparent;
       }
       .wrapper-body {
+        width: 300px;
         position: absolute;
         top: 0;
+        left: 0;
+        padding: 20px 15px 5px 0;
+        background-color: rgba(0, 0, 0, 0.7);
+      }
+      .header {
+        position: absolute;
+        top: 0;
+        right: 0;
       }
       footer {
         margin-top: 20px;
@@ -86,9 +95,10 @@
   <body>
 
     <div id='map'></div>
-
-    <div class='wrapper-body'>
+    <div class='header'>
       <h1>Visualizing TFL Accident Statistics</h1>
+    </div>
+    <div class='wrapper-body'>
 
       <div id='options-severity'></div>
       <div id='vis-vehicles'></div>
