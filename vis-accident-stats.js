@@ -35,20 +35,22 @@ function createVis(data) {
   var vehiclesRange = d3.extent( Array.from( new Set( data.map( d => d.vehicles.length ) ) ) );
 
   // vis panel attr
-  var width = 400;
+  var width = 300;
   var height = 300;
 
   var t = d3.transition(t).duration(2000);
+
+  var severityColorRange = ['#de2d26', '#fdbb84', '#fee8c8'];
+
+  // initially show only first two sections
+  var initialData = data.filter(d => d.severity === 'Fatal' || d.severity === 'Severe');
 
   var boroughVis = createBoroughVis(data);
   var ageVis = createAgeVis(data);
   var modeVis = createModeVis(data);
   var severityVis = createSeverityVis(severityTypes);
 
-  //createMapVis(data);
-  //createWebGLMapVis(data);
-  //createCanvasLayerMapVis(data);
-  createPaperMapVis(data);
+  var map = createMapVis(data.sort((pre,cur) => pre.severity === cur.severity ? (cur.casualties.length-pre.casualties.length) : (pre.severity < cur.severity ? -1 : 1)));
 
   var filter = resetFilter();
 
@@ -83,6 +85,8 @@ function createVis(data) {
 
     ageVis.update(filteredData);
     modeVis.update(filteredData);
+
+    map.update(filteredData);
 
     function filterAge(filteredData) {
       var filteredAgeData = [];
@@ -140,11 +144,22 @@ function createVis(data) {
     };
   }
 
+  function getSorted(data, max) {
+  }
+
   function createMapVis(data) {
 
-    var geoJSONdata = format2geoJSON(data);
+    var mapData = data;
+
+    var severityColor = d3.scaleOrdinal()
+      .domain(severityTypes)
+      .range(severityColorRange);
+
+    var mapObj = {};
 
     var map = initMap();
+
+    var geoJSONdata = format2geoJSON(mapData.slice(0, 5000));
 
     map.data.addGeoJson(geoJSONdata);
 
@@ -152,25 +167,76 @@ function createVis(data) {
       console.log('Casualties: ', event.feature.getProperty('casualties'));
     });
 
-    map.data.setStyle(function(feature) {
-       return ({
-         icon: {
-           path: google.maps.SymbolPath.CIRCLE,
-           scale: 1,
-           fillColor: '#f00',
-           fillOpacity: 0.35,
-           strokeWeight: 0
-         }
-       });
-     });
+    map.data.addListener('mouseover', event => {
+      map.data.revertStyle();
+      map.data.overrideStyle(event.feature, mapIcon(event.feature, true));
+    });
+
+    map.data.addListener('mouseout', event => map.data.revertStyle());
+
+    map.addListener('mouseup', () => mapObj.update(mapData));
+
+    map.addListener('zoom_changed', () => mapObj.update(mapData));
+
+    map.data.setStyle(feature => mapIcon(feature, false));
+
+    mapObj.map = map;
+
+    mapObj.update = data => {
+
+      mapData = data.sort((pre,cur) => pre.severity === cur.severity ? (cur.casualties.length-pre.casualties.length) : (pre.severity < cur.severity ? -1 : 1));
+
+      var ne = map.getBounds().getNorthEast();
+      var sw = map.getBounds().getSouthWest();
+
+      var latBounds = [sw.lat(), ne.lat()];
+      var lonBounds = [sw.lng(), ne.lng()];
+
+      var dataWithinBounds = mapData.filter( d => inBounds(d.lat, d.lon, latBounds, lonBounds)).slice(0, 3500);
+      var oldData = [];
+
+      map.data.forEach(feature => {
+        var remaining = dataWithinBounds.find( d => d.id === feature.getProperty('id'));
+        if (remaining) {
+          oldData.push(remaining);
+        } else {
+          map.data.remove(feature);
+        }
+      });
+
+      var newData = dataWithinBounds.filter(x => oldData.indexOf(x) === -1).slice(0, 3500);
+      map.data.addGeoJson(format2geoJSON(newData));
+
+    }
+
+    return mapObj;
+
+    function mapIcon(feature, hover) {
+      return ({
+        title: 'click for details',
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: feature.getProperty('casualties')*10,
+          fillColor: severityColor(feature.getProperty('severity')),
+          fillOpacity: 0.7,
+          strokeColor: 'white',
+          strokeWeight: hover ? 5 : .7
+        }
+      })
+    }
+
+    function inBounds(lat, lon, latBounds, lonBounds) {
+      return (lat < latBounds[1] && lat > latBounds[0]) && (lon < lonBounds[1] && lon > lonBounds[0]);
+    }
 
     function format2geoJSON(data) {
       var features = data.map( (d,i) => {
         return {
           "type": "Feature",
           "properties": {
-            "index": i,
-            "casualties": d.casualties.length
+            "id": d.id,
+            "casualties": d.casualties.length,
+            "severity": d.severity
           },
           "geometry": {
             "type": "Point",
@@ -220,7 +286,8 @@ function createVis(data) {
         },{
           "stylers": [
             { "invert_lightness": true },
-            { "hue": "#0077ff" }
+            { "hue": "#0077ff" },
+            { "saturation": -20 }
           ]
         },{
           "featureType": "administrative.locality",
@@ -821,12 +888,12 @@ function createVis(data) {
 
     var severityColor = d3.scaleOrdinal()
       .domain(severityTypes)
-      .range(['#98abc5', '#7b6888', '#ff8c00']);
+      .range(severityColorRange);
 
     horBarVis.svg = d3.select('#'+idElement)
       .append('svg')
       .attr('width', visWidth + margin*2)
-      .attr('height', visHeight + margin*2)
+      .attr('height', visHeight + margin)
         .append('g')
         .attr('transform', 'translate('+margin+','+margin+')');
 
@@ -1016,8 +1083,8 @@ function createVis(data) {
 
       boroughVis.svg = d3.select('#'+idElement)
         .append('svg')
-          .attr('width', visWidth + margin*2)
-          .attr('height', visHeight + margin*2)
+          .attr('width', visWidth + margin)
+          .attr('height', visHeight + margin)
         .append('g')
           .attr('transform', 'translate('+ margin +','+ margin +')');
 
@@ -1075,7 +1142,7 @@ function createVis(data) {
             .attr('class', 'borough-num label')
             .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + boxWidth - shift*2)
             .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + boxWidth - shift*2)
-            .style('font-size', d => (boxWidth < 45) ? '10px' : '13px' )
+            .style('font-size', d => (boxWidth < 40) ? '10px' : '13px' )
           .text(d => d.casualties);
 
         group.append('text')
@@ -1083,7 +1150,7 @@ function createVis(data) {
             .attr('class', 'borough-label label')
             .attr('x', d => d.pos[0]*boxWidth + d.pos[0]*shift + shift*2)
             .attr('y', d => d.pos[1]*boxWidth + d.pos[1]*shift + shift*6)
-            .style('font-size', d => (boxWidth < 45) ? '10px' : '13px' )
+            .style('font-size', d => (boxWidth < 40) ? '9px' : '13px' )
           .text(d => d.nameShort.toUpperCase());
 
       }
@@ -1122,7 +1189,7 @@ function createVis(data) {
 
     var severityColor = d3.scaleOrdinal()
       .domain(types)
-      .range(['#98abc5', '#7b6888', '#ff8c00']);
+      .range(severityColorRange);
 
     var svg = d3.select('#options-severity')
       .append('svg')
