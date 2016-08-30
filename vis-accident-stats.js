@@ -38,9 +38,8 @@ function createVis(data) {
   var width = 300;
   var height = 300;
 
-  var t = d3.transition(t).duration(2000);
-
-  var severityColorRange = ['#de2d26', '#fdbb84', '#fee8c8'];
+  var severityColorRange = ['#FC371E', '#FD8824', '#FDAF2A'];
+  //var severityColorRange = ['#C42000', '#FD7B22', '#FDAF2A'];
 
   // initially show only first two sections
   var initialData = data.filter(d => d.severity === 'Fatal' || d.severity === 'Severe');
@@ -50,9 +49,10 @@ function createVis(data) {
   var modeVis = createModeVis(initialData);
   var severityVis = createSeverityVis(severityTypes);
   var map = createMapVis(initialData.sort((pre,cur) => pre.severity === cur.severity ? (cur.casualties.length-pre.casualties.length) : (pre.severity < cur.severity ? -1 : 1)));
+  var accidentVis = createAccidentVis();
 
   var filter = {
-    severity: ['Fatal', 'Severe'],   // initially only two severity types
+    severity: ['Fatal', 'Severe'], // initially only two severity types
     borough: boroughVis.londonBoroughs,
     age: ageVis.ageBands,
     mode: modeVis.modeTypes
@@ -148,9 +148,6 @@ function createVis(data) {
     };
   }
 
-  function getSorted(data, max) {
-  }
-
   function createMapVis(data) {
 
     var mapData = data;
@@ -167,9 +164,7 @@ function createVis(data) {
 
     map.data.addGeoJson(geoJSONdata);
 
-    map.data.addListener('click', function(event) {
-      console.log('Casualties: ', event.feature.getProperty('casualties'));
-    });
+    map.data.addListener('click', event => accidentVis.update(event.feature.getProperty('id')));
 
     map.data.addListener('mouseover', event => {
       map.data.revertStyle();
@@ -222,9 +217,9 @@ function createVis(data) {
           path: google.maps.SymbolPath.CIRCLE,
           scale: feature.getProperty('casualties')*10,
           fillColor: severityColor(feature.getProperty('severity')),
-          fillOpacity: 0.7,
-          strokeColor: 'white',
-          strokeWeight: hover ? 5 : .7
+          fillOpacity: 0.5,
+          strokeColor: hover ? '#05ffa7' : 'white',
+          strokeWeight: hover ? 2 : .7
         }
       })
     }
@@ -943,12 +938,12 @@ function createVis(data) {
             .attr('y', d => yScale(d.data.type))
             .attr('x', d => Math.max(shift, xScale(d[0])))
             .attr('height', yScale.bandwidth())
-          .transition(t)
+          .transition()
             .attr('width', d => (xScale(d[1]) - xScale(d[0]) === 0) ? 0 : Math.max(1, xScale(d[1]) - xScale(d[0])))
             .style('fill-opacity', 1);
 
       bars.exit()
-        .transition(t)
+        .transition()
           .attr('width', 0)
           .remove();
     };
@@ -985,10 +980,10 @@ function createVis(data) {
     if (iconsEnabled) {
       group.append('svg:image')
           .attr('class', 'icon-bar')
-          .attr('x', 0)
-          .attr('y', d => yScale(d.type))
-          .attr('width', yScale.bandwidth())
-          .attr('height', yScale.bandwidth())
+          .attr('x', 1.5)
+          .attr('y', d => yScale(d.type)+1.5)
+          .attr('width', yScale.bandwidth()-3)
+          .attr('height', yScale.bandwidth()-3)
           .attr('xlink:href', d => 'icons/'+d.type+'.svg');
     } else {
       group.append('text')
@@ -1083,7 +1078,7 @@ function createVis(data) {
 
       var casualtiesScale = d3.scaleLinear()
         .domain(d3.extent(londonBoroughs.map(d => d.casualties)))
-        .range(['#cee069', '#2c7fb8']);
+        .range(['#05cc7f', '#00472c']);
 
       boroughVis.svg = d3.select('#'+idElement)
         .append('svg')
@@ -1123,11 +1118,11 @@ function createVis(data) {
           .attr('class', 'borough-rect');
 
         rect.exit()
-          .transition(t)
+          .transition()
             .style('opacity', 1e-6)
             .remove();
 
-        rect.transition(t)
+        rect.transition()
           .attr('fill', d => casualtiesScale(d.casualties));
 
         rect.attr('id', d => 'borough-rect-'+d.nameShort)
@@ -1137,7 +1132,7 @@ function createVis(data) {
             .attr('width', boxWidth)
             .attr('height', boxWidth)
             .style('fill-opacity', 0)
-          .transition(t)
+          .transition()
             .attr('fill', d => casualtiesScale(d.casualties))
             .style('fill-opacity', 1);
 
@@ -1199,10 +1194,16 @@ function createVis(data) {
       .domain(types)
       .range(severityColorRange);
 
+    var margin = 10;
+    var visWidth = width - margin*4;
+    var visHeight = 70 - margin*2;
+
     var svg = d3.select('#options-severity')
       .append('svg')
-        .attr('width', 300)
-        .attr('height', 30);
+        .attr('width', visWidth + margin*4)
+        .attr('height', visHeight + margin)
+      .append('g')
+        .attr('transform', 'translate('+ margin*4 +','+ margin +')');
 
     var options = svg.selectAll('.option-severity')
       .data(severityTypes)

@@ -5,7 +5,9 @@
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
 
-    <title>Visualization of TFL Accident Statistics</title>
+    <link rel="icon" type="image/x-icon" href="icons/favicon.ico" />
+
+    <title>Visualization of TFL Accident Data</title>
     <style>
       html, body {
         position: relative;
@@ -30,18 +32,20 @@
         font-size: 11px;
         text-anchor: middle;
       }
+      .label-pointer {
+        cursor: pointer;
+      }
       .borough-num, .vehicle-num {
         text-anchor: end;
       }
       .borough-label {
         text-anchor: start;
-      }
-      .borough-num {
-        fill: black;
+        /*fill: black;*/
+        font-weight: bold;
       }
       .rect-selected, .rect-hover {
-        stroke: white;
-        stroke-width: 2px;
+        stroke: #05ffa7;
+        stroke-width: 1px;
       }
       .tick text {
         fill: white;
@@ -57,7 +61,7 @@
         position: absolute;
         top: 0;
         left: 0;
-        padding: 20px 15px 5px 0;
+        padding: 10px 15px 0 0;
         background-color: rgba(0, 0, 0, 0.7);
       }
       .header {
@@ -90,13 +94,19 @@
         padding-right: 100px;
         font: 10px sans-serif;
       }
+      #vis-accident {
+        position: absolute;
+        bottom: -500px;
+        left: 315px;
+        background-color: rgba(0, 0, 0, 0.7);
+      }
     </style>
   </head>
   <body>
 
     <div id='map'></div>
     <div class='header'>
-      <h1>Visualizing TFL Accident Statistics</h1>
+      <h1>Visualizing TFL Accident Data</h1>
     </div>
     <div class='wrapper-body'>
 
@@ -109,6 +119,8 @@
         <div>Icons (altered) made by <a href='http://www.flaticon.com/authors/zlatko-najdenovski' target='_blank' title='Zlatko Najdenovski'>Zlatko Najdenovski</a> from <a href='http://www.flaticon.com' title='Flaticon' target='_blank'>www.flaticon.com</a> is licensed by <a href='http://creativecommons.org/licenses/by/3.0/' title='Creative Commons BY 3.0' target='_blank'>CC 3.0 BY</a></div>
       </footer>
     </div>
+
+    <div id='vis-accident'></div>
 
     <!-- remove if not neccessary after refactor! -->
     <script src='//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js'></script>
