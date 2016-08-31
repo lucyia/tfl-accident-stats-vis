@@ -155,6 +155,9 @@ function createVis(data) {
     var svgWidth = 300;
     var svgHeight = 300;
 
+    var centerHeight = svgHeight / 2 + 20;
+    var centerWidth = svgWidth / 2 - 10;
+
     var severityColor = d3.scaleOrdinal()
       .domain(severityTypes)
       .range(severityColorRange);
@@ -173,25 +176,52 @@ function createVis(data) {
       .on('click', () => {
         d3.select('#vis-accident')
           .transition()
-          .style('bottom', '-500px');
+          .style('top', '-500px');
       });
 
     vis.update = accidentId => {
       // reset style of wrapper
-      d3.select('#vis-accident').style('bottom', '0');
+      d3.select('#vis-accident').style('top', '0');
 
       var accident = data.find(d => d.id === accidentId);
 
-      var angle = 360 / accident.casualties.length;
+      //var angle = 360 / accident.casualties.length;
+      var numCasualties = accident.casualties.length > 6 ? 6 : accident.casualties.length;
+      var angle = 360 / numCasualties;
       var r = 50;
       var iconSize = 30;
 
+      locationHeading();
       casualtyModeIcon();
       casualtySeverity();
       casualtyAge();
-      //pieChart(accident.casualties[0].age);
+      //pieChart();
       dateTimeLabel(true);
       dateTimeLabel(false);
+
+      function locationHeading() {
+
+        var locationHeading = d3.selectAll('.accident-location')
+          .data([accident]);
+
+        locationHeading.exit()
+          .transition()
+            .style('opacity', 0)
+          .remove();
+
+        locationHeading.enter()
+          .append('span')
+            .attr('class', 'accident-location label')
+            .style('opacity', 0)
+          .transition(d3.transition().duration(3000))
+            .style('opacity', 1)
+            .text(d => d.location);
+
+        locationHeading.transition()
+          .transition(d3.transition().duration(3000))
+            .style('opacity', 1)
+            .text(d => d.location);
+      }
 
       function pieChart(age) {
 
@@ -261,17 +291,17 @@ function createVis(data) {
           .transition()
             .style('opacity', 0)
           .transition()
-            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
-            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('x', (d, i) => pointOnCircle(angle*i, r, i)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r, i)[1] - iconSize/2)
             .attr('width', iconSize)
             .attr('height', iconSize)
           .transition()
             .style('opacity', 1)
-            .attr('x', svgWidth/2)
-            .attr('y', svgHeight/2)
+            .attr('x', centerWidth)
+            .attr('y', centerHeight)
           .transition()
-            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
-            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('x', (d, i) => pointOnCircle(angle*i, r, i)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r, i)[1] - iconSize/2)
             .attr('xlink:href', d => 'icons/'+d.mode+'.svg')
             .style('opacity', 1);
 
@@ -279,17 +309,17 @@ function createVis(data) {
           .style('opacity', 0)
           .transition()
             .attr('xlink:href', d => 'icons/'+d.mode+'.svg')
-            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
-            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('x', (d, i) => pointOnCircle(angle*i, r, i)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r, i)[1] - iconSize/2)
             .attr('width', iconSize)
             .attr('height', iconSize)
           .transition()
             .style('opacity', 1)
-            .attr('x', svgWidth/2 - 5) // shift of the text label
-            .attr('y', svgHeight/2 - 10) // shift of the text label
+            .attr('x', centerWidth - 5) // shift of the text label
+            .attr('y', centerHeight - 10) // shift of the text label
           .transition()
-            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
-            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('x', (d, i) => pointOnCircle(angle*i, r, i)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r, i)[1] - iconSize/2)
             .style('opacity', 1);
       }
 
@@ -309,32 +339,33 @@ function createVis(data) {
           .append('circle')
             .attr('class', 'accident-age-circle')
             .style('opacity', 0)
-          .transition()
             .attr('r', 10)
             .attr('fill', 'white')
           .transition()
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift)
+            .style('opacity', 0)
           .transition()
-            .attr('cx', svgWidth/2)
-            .attr('cy', svgHeight/2)
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1]-shift)
+          .transition()
+            .attr('cx', centerWidth)
+            .attr('cy', centerHeight)
           .transition(d3.transition().duration(3000))
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift)
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1]-shift)
             .style('opacity', 1);
 
         casualtyAgeCircle.transition()
             .style('opacity', 0)
           .transition()
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift)
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1]-shift)
           .transition()
-            .attr('cx', svgWidth/2)
-            .attr('cy', svgHeight/2)
+            .attr('cx', centerWidth)
+            .attr('cy', centerHeight)
           .transition(d3.transition().duration(3000))
             .style('opacity', 1)
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift);
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1]-shift);
 
         var casualtyAge = svg.selectAll('.accident-age')
           .data(accident.casualties);
@@ -351,23 +382,23 @@ function createVis(data) {
           .transition()
             .style('opacity', 0)
           .transition()
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r, i)[1]-shift/4*3)+')')
           .transition()
-            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+')')
+            .attr('transform', (d, i) => 'translate('+(centerWidth)+','+(centerHeight)+')')
           .transition(d3.transition().duration(3000))
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r, i)[1]-shift/4*3)+')')
             .style('opacity', 1)
             .text(d => (d.age) ? d.age+'y' : 'N/A');
 
         casualtyAge.transition()
             .style('opacity', 0)
           .transition()
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r, i)[1]-shift/4*3)+')')
           .transition()
-            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+')')
+            .attr('transform', (d, i) => 'translate('+(centerWidth)+','+(centerHeight)+')')
           .transition(d3.transition().duration(3000))
             .style('opacity', 1)
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r, i)[1]-shift/4*3)+')')
             .text(d => (d.age) ? d.age+'y' : 'N/A');
 
       }
@@ -390,24 +421,24 @@ function createVis(data) {
             .style('opacity', 0)
           .transition()
             .attr('fill', d => severityColor(d.severity))
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift)+','+(pointOnCircle(angle*i, r, i)[1])+') scale('+0.05+')')
           .transition()
-            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+') scale('+0+')')
+            .attr('transform', (d, i) => 'translate('+(centerWidth)+','+(centerHeight)+') scale('+0+')')
           .transition(d3.transition().duration(3000))
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift)+','+(pointOnCircle(angle*i, r, i)[1])+') scale('+0.05+')')
             .attr('d', 'M 243.44676,222.01677 C 243.44676,288.9638 189.17548,343.23508 122.22845,343.23508 C 55.281426,343.23508 1.0101458,288.9638 1.0101458,222.01677 C 1.0101458,155.06975 40.150976,142.95572 122.22845,0.79337431 C 203.60619,141.74374 243.44676,155.06975 243.44676,222.01677 z')
             .style('opacity', 1);
 
         casualtySeverity.transition()
             .style('opacity', 0)
           .transition()
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')')
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift)+','+(pointOnCircle(angle*i, r, i)[1])+') scale('+0.05+')')
           .transition()
-            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+') scale('+0+')')
+            .attr('transform', (d, i) => 'translate('+(centerWidth)+','+(centerHeight)+') scale('+0+')')
           .transition(d3.transition().duration(3000))
             .style('opacity', 1)
             .attr('fill', d => severityColor(d.severity))
-            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')');
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift)+','+(pointOnCircle(angle*i, r, i)[1])+') scale('+0.05+')');
 
       }
 
@@ -425,30 +456,30 @@ function createVis(data) {
           .append('circle')
             .attr('class', 'accident-circle')
           .transition()
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1])
             .attr('r', 0)
           .transition()
-            .attr('cx', svgWidth/2)
-            .attr('cy', svgHeight/2)
+            .attr('cx', centerWidth)
+            .attr('cy', centerHeight)
             .attr('r', iconSize)
             .attr('fill', d => severityColor(d.severity))
           .transition()
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1])
             .style('opacity', 1);
 
         accidentCircles.transition()
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1])
             .attr('r', 0)
           .transition()
-            .attr('cx', svgWidth/2)
-            .attr('cy', svgHeight/2)
+            .attr('cx', centerWidth)
+            .attr('cy', centerHeight)
             .attr('r', iconSize)
           .transition()
-            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
-            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r, i)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1])
             .attr('fill', d => severityColor(d.severity));
 
       }
@@ -469,8 +500,8 @@ function createVis(data) {
         dateTime.enter()
           .append('text')
           .attr('class', className+' label NEW')
-          .attr('x', svgWidth/2)
-          .attr('y', svgHeight/2 + shift)
+          .attr('x', centerWidth + 5)
+          .attr('y', centerHeight + shift)
           .style('text-anchor', 'middle')
           .style('opacity', '0')
           .style('font-size', fontSize)
@@ -481,8 +512,8 @@ function createVis(data) {
         dateTime.transition()
           .style('opacity', '0')
           .transition(d3.transition().duration(3000))
-          .attr('x', svgWidth/2)
-          .attr('y', svgHeight/2 + shift)
+          .attr('x', centerWidth + 5)
+          .attr('y', centerHeight + shift)
           .style('opacity', '1')
           .style('font-size', fontSize)
           .text(dateTimeText);
@@ -501,13 +532,16 @@ function createVis(data) {
 
     return vis;
 
-    function pointOnCircle(angle, radius) {
-      var center = [svgWidth/2, svgHeight/2];
+    function pointOnCircle(angle, radius, i) {
+      var center = [centerWidth, centerHeight];
 
-      var rads = angle * Math.PI / 180;
+      var shift = (i < 6) ? 0 : 1;
+      var angleShift = shift === 1 ? -angle/2 : 0;
 
-      var x = center[0] + radius * Math.cos(rads);
-      var y = center[1] + radius * Math.sin(rads);
+      var rads = (angle+angleShift) * Math.PI / 180;
+
+      var x = center[0] + (radius+shift*radius) * Math.cos(rads);
+      var y = center[1] + (radius+shift*radius) * Math.sin(rads);
 
       return [x, y];
     }
