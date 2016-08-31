@@ -74,6 +74,7 @@ function createVis(data) {
       .on('click', () => {
         d3.select('#about-title').transition().style('right', '-100px');
         d3.select('#about').transition().style('opacity', '1').style('right', '0');
+        d3.select('#vis-accident').transition().style('right', '-500px');
       });
   }
 
@@ -195,9 +196,9 @@ function createVis(data) {
 
     // quick replacement for button
     svg.append('text')
-      .attr('class', 'label label-pointer')
+      .attr('class', 'label label-pointer label-green')
       .attr('x', 20)
-      .attr('y', svgHeight - 20)
+      .attr('y', 20)
       .text('✖')
       .on('click', () => {
         d3.select('#vis-accident')
@@ -934,7 +935,7 @@ function createVis(data) {
       .attr('class', 'd3-tip d3-tip2')
       .html(d => d)
       .direction('e')
-      .offset([0,15])
+      .offset([0,5])
 
     var horBarVis = {};
 

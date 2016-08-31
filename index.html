@@ -5,16 +5,18 @@
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
 
-    <meta property="og:title" content="Visualizing TFL Accidents Data">
-    <meta property="og:site_name" content="http://lucyia.github.io/">
-    <meta property="og:url" content="http://lucyia.github.io/tfl-accidents/">
-    <meta property="og:description" content="This interactive visualisation aims to display traffic accident information as kept by Transport for London for the year 2015.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="http://i.imgur.com/m6p3l7a.jpg">
+    <meta property='og:title' content='Visualizing TFL Accidents Data'>
+    <meta property='og:site_name' content='http://lucyia.github.io/'>
+    <meta property='og:url' content='http://lucyia.github.io/tfl-accidents/'>
+    <meta property='og:description' content='This interactive visualisation aims to display traffic accident information as kept by Transport for London for the year 2015.'>
+    <meta property='og:type' content='website'>
+    <meta property='og:image' content='http://i.imgur.com/m6p3l7a.jpg'>
+    <meta property='og:image:width' content='1250' />
+    <meta property='og:image:height' content='734' />
 
-    <link rel="icon" type="image/x-icon" href="icons/favicon.ico" />
+    <link rel='icon' type='image/x-icon' href='icons/favicon.ico' />
 
-    <title>Visualization of TFL Accident Data</title>
+    <title>Visualizing TFL Accident Data</title>
     <style>
       html, body {
         position: relative;
@@ -24,7 +26,7 @@
         margin: 0;
         background-color: black;
       }
-      body{
+      body {
         font-family: Helvetica, Arial, sans-serif;
         color: white;
       }
@@ -145,7 +147,7 @@
       }
       #toggle-about {
         position: absolute;
-        bottom: 10px;
+        top: 10px;
         left: 10px;
       }
       #about-title {
@@ -155,6 +157,9 @@
         padding: 5px 30px 5px 10px;
         font-size: 11px;
         cursor: pointer;
+      }
+      .label-green {
+        color: #05ffa7;
       }
       .casualties-map, .casualties-map svg {
         position: absolute;
@@ -212,7 +217,7 @@
         « About
       </span>
       <div id='about' class='wrapper'>
-        <span id='toggle-about'>
+        <span id='toggle-about' class='label-green'>
           ✖
         </span>
         <div class='about-content'>
