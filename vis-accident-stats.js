@@ -56,7 +56,14 @@ function createVis(data) {
 
   toggleAbout();
 
-  // quick replacement for button
+  positionWrapper();
+
+  function positionWrapper() {
+    if (window.innerHeight > 750) {
+      d3.select('#wrapper-body').style('top', (window.innerHeight/2-375)+'px')
+    }
+  }
+
   function toggleAbout() {
     d3.select('#toggle-about')
       .on('click', () => {
@@ -189,18 +196,18 @@ function createVis(data) {
     // quick replacement for button
     svg.append('text')
       .attr('class', 'label label-pointer')
-      .attr('x', svgWidth - 20)
-      .attr('y', 20)
+      .attr('x', 20)
+      .attr('y', svgHeight - 20)
       .text('✖')
       .on('click', () => {
         d3.select('#vis-accident')
           .transition()
-          .style('top', '-500px');
+          .style('right', '-500px');
       });
 
     vis.update = accidentId => {
       // reset style of wrapper
-      d3.select('#vis-accident').style('top', '0');
+      d3.select('#vis-accident').style('right', '0');
 
       var accident = data.find(d => d.id === accidentId);
 
@@ -612,7 +619,10 @@ function createVis(data) {
 
     map.data.addGeoJson(geoJSONdata);
 
-    map.data.addListener('click', event => accidentVis.update(event.feature.getProperty('id')));
+    map.data.addListener('click', event => {
+      hideAbout();
+      accidentVis.update(event.feature.getProperty('id'));
+    });
 
     map.data.addListener('mouseover', event => {
       map.data.revertStyle();
