@@ -39,9 +39,10 @@ function createVis(data) {
   var height = 300;
 
   var severityColorRange = ['#FC371E', '#FD8824', '#FDAF2A'];
-  //var severityColorRange = ['#C42000', '#FD7B22', '#FDAF2A'];
 
-  // initially show only first two sections
+  var tip = d3.tip().attr('class', 'd3-tip').html(d => d);
+
+  // as default show only first two sections
   var initialData = data.filter(d => d.severity === 'Fatal' || d.severity === 'Severe');
 
   var boroughVis = createBoroughVis(initialData);
@@ -51,12 +52,28 @@ function createVis(data) {
   var map = createMapVis(initialData.sort((pre,cur) => pre.severity === cur.severity ? (cur.casualties.length-pre.casualties.length) : (pre.severity < cur.severity ? -1 : 1)));
   var accidentVis = createAccidentVis();
 
-  var filter = {
-    severity: ['Fatal', 'Severe'], // initially only two severity types
-    borough: boroughVis.londonBoroughs,
-    age: ageVis.ageBands,
-    mode: modeVis.modeTypes
-  };
+  var filter = resetFilter();
+
+  toggleAbout();
+
+  // quick replacement for button
+  function toggleAbout() {
+    d3.select('#toggle-about')
+      .on('click', () => {
+        hideAbout();
+      });
+
+    d3.select('#about-title')
+      .on('click', () => {
+        d3.select('#about-title').transition().style('right', '-100px');
+        d3.select('#about').transition().style('opacity', '1').style('right', '0');
+      });
+  }
+
+  function hideAbout() {
+    d3.select('#about').transition().style('opacity', '0').style('right', '-500px');
+    d3.select('#about-title').transition().style('right', '0');
+  }
 
   function updateAllVis(type = undefined, value) {
 
@@ -141,7 +158,7 @@ function createVis(data) {
 
   function resetFilter() {
     return {
-      severity: severityVis.severityTypes,
+      severity: ['Fatal', 'Severe'],
       borough: boroughVis.londonBoroughs,
       age: ageVis.ageBands,
       mode: modeVis.modeTypes
@@ -167,6 +184,8 @@ function createVis(data) {
         .attr('width', svgWidth)
         .attr('height', svgHeight);
 
+    svg.call(tip);
+
     // quick replacement for button
     svg.append('text')
       .attr('class', 'label label-pointer')
@@ -185,8 +204,17 @@ function createVis(data) {
 
       var accident = data.find(d => d.id === accidentId);
 
-      //var angle = 360 / accident.casualties.length;
-      var numCasualties = accident.casualties.length > 6 ? 6 : accident.casualties.length;
+      var allAccidentParticipants = accident.casualties.map(d => d);
+
+      var casualties = accident.vehicles.forEach( vehicle => {
+        var casualtyAlsoVehicle = accident.casualties.find( casualty => vehicle.type === casualty.type);
+        if (casualtyAlsoVehicle === undefined) {
+          allAccidentParticipants.push(vehicle);
+        }
+      });
+      accident.participants = allAccidentParticipants;
+
+      var numCasualties = accident.participants.length > 6 ? 6 : accident.participants.length;
       var angle = 360 / numCasualties;
       var r = 50;
       var iconSize = 30;
@@ -278,7 +306,7 @@ function createVis(data) {
 
       function casualtyModeIcon() {
         var casualtyMode = svg.selectAll('.accident-icon')
-          .data(accident.casualties);
+          .data(accident.participants);
 
         casualtyMode.exit()
           .transition()
@@ -288,6 +316,26 @@ function createVis(data) {
         casualtyMode.enter()
           .append('svg:image')
             .attr('class', 'accident-icon')
+            .on('mouseover', d => {
+              var vehicleText = '';
+              var casualtyText = '';
+              var ageText = '';
+
+              if (d.type!=='Pedestrian') {
+                vehicleText = 'Vehicle: '+d.type+'<br/>';
+              }
+
+              if (d.class) {
+                casualtyText = 'Casualty: '+d.class+'<br/>';
+              }
+
+              if (d.age) {
+                ageText = 'Age: '+d.age+'<br/>';
+              }
+
+              tip.show(vehicleText+casualtyText+ageText);
+            })
+            .on('mouseout', tip.hide)
           .transition()
             .style('opacity', 0)
           .transition()
@@ -302,13 +350,13 @@ function createVis(data) {
           .transition()
             .attr('x', (d, i) => pointOnCircle(angle*i, r, i)[0] - iconSize/2)
             .attr('y', (d, i) => pointOnCircle(angle*i, r, i)[1] - iconSize/2)
-            .attr('xlink:href', d => 'icons/'+d.mode+'.svg')
+            .attr('xlink:href', d => 'icons/'+d.type+'.svg')
             .style('opacity', 1);
 
         casualtyMode.transition()
           .style('opacity', 0)
           .transition()
-            .attr('xlink:href', d => 'icons/'+d.mode+'.svg')
+            .attr('xlink:href', d => 'icons/'+d.type+'.svg')
             .attr('x', (d, i) => pointOnCircle(angle*i, r, i)[0] - iconSize/2)
             .attr('y', (d, i) => pointOnCircle(angle*i, r, i)[1] - iconSize/2)
             .attr('width', iconSize)
@@ -328,7 +376,7 @@ function createVis(data) {
         var shift = 15;
 
         var casualtyAgeCircle = svg.selectAll('.accident-age-circle')
-          .data(accident.casualties);
+          .data(accident.participants);
 
         casualtyAgeCircle.exit()
           .transition()
@@ -368,7 +416,7 @@ function createVis(data) {
             .attr('cy', (d, i) => pointOnCircle(angle*i, r, i)[1]-shift);
 
         var casualtyAge = svg.selectAll('.accident-age')
-          .data(accident.casualties);
+          .data(accident.participants);
 
         casualtyAge.exit()
           .transition()
@@ -407,7 +455,7 @@ function createVis(data) {
         var shift = 10;
 
         var casualtySeverity = svg.selectAll('.accident-severity')
-          .data(accident.casualties);
+          .data(accident.participants);
 
         casualtySeverity.exit()
           .transition()
@@ -420,7 +468,7 @@ function createVis(data) {
           .transition()
             .style('opacity', 0)
           .transition()
-            .attr('fill', d => severityColor(d.severity))
+            .attr('fill', d => (d.severity) ? severityColor(d.severity) : 'transparent')
             .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift)+','+(pointOnCircle(angle*i, r, i)[1])+') scale('+0.05+')')
           .transition()
             .attr('transform', (d, i) => 'translate('+(centerWidth)+','+(centerHeight)+') scale('+0+')')
@@ -437,14 +485,14 @@ function createVis(data) {
             .attr('transform', (d, i) => 'translate('+(centerWidth)+','+(centerHeight)+') scale('+0+')')
           .transition(d3.transition().duration(3000))
             .style('opacity', 1)
-            .attr('fill', d => severityColor(d.severity))
+            .attr('fill', d => (d.severity) ? severityColor(d.severity) : 'transparent')
             .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r, i)[0]+shift)+','+(pointOnCircle(angle*i, r, i)[1])+') scale('+0.05+')');
 
       }
 
       function severityCircles() {
         var accidentCircles = svg.selectAll('.accident-circle')
-          .data(accident.casualties);
+          .data(accident.participants);
 
         accidentCircles.exit()
           .transition()
@@ -717,370 +765,6 @@ function createVis(data) {
     }
   }
 
-  function createWebGLMapVis(data) {
-    var map;
-    var myLayer;
-
-    var geoJSONdata = format2geoJSON(data);
-
-    initMap();
-
-    function format2geoJSON(data) {
-      var features = data.map( (d,i) => {
-        return {
-          "type": "Feature",
-          "properties": {
-            "index": i,
-            "casualties": d.casualties.length
-          },
-          "geometry": {
-            "type": "Point",
-            "coordinates": [d.lon, d.lat]
-          }
-        }
-      });
-
-      return {
-        "type": "FeatureCollection",
-        "features": features
-      };
-    }
-
-    function initMap() {
-      var options = [
-        {
-          "featureType": "administrative",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "featureType": "landscape",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        },{
-          "featureType": "poi",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "featureType": "poi.park",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        },{
-          "featureType": "transit.line",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "elementType": "labels.text",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        },{
-          "stylers": [
-            { "invert_lightness": true },
-            { "hue": "#0077ff" }
-          ]
-        },{
-          "featureType": "administrative.locality",
-          "elementType": "labels.text",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "featureType": "administrative.neighborhood",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        }
-      ];
-
-      var mapOptions = {
-        zoom: 13,
-        center: new google.maps.LatLng(51.5, -0.11),
-        mapTypeId: google.maps.MapTypeId.TERRAIN,
-        zoomControl: true,
-        mapTypeControl: false,
-        scaleControl: true,
-        streetViewControl: false,
-        rotateControl: false,
-        fullscreenControl: false,
-        styles: options
-      };
-
-      var mapCanvas = document.getElementById('map');
-      map = new google.maps.Map(mapCanvas, mapOptions);
-
-      map.addListener('click', function(event) {
-        console.log('Casualties: ', event);
-      });
-
-      var myLayer = new WebGLLayer(map);
-
-      myLayer.loadData(geoJSONdata);
-
-      myLayer.start();
-    }
-
-  }
-
-  function createCanvasLayerMapVis(data) {
-    var map;
-    var canvasLayer;
-    var context;
-    var rectLatLng = new google.maps.LatLng(40, -95);
-    var rectWidth = 6.5;
-    var resolutionScale = window.devicePixelRatio || 1;
-
-    init();
-
-    function init() {
-      // initialize the map
-      var mapOptions = {
-        zoom: 4,
-        center: new google.maps.LatLng(39.3, -95.8),
-        mapTypeId: google.maps.MapTypeId.ROADMAP,
-        styles: [
-          {
-            stylers: [{saturation: -85}]
-          }, {
-            featureType: "water",
-            elementType: "geometry",
-            stylers: [
-              { lightness: -20 }
-            ]
-          }
-        ]
-      };
-
-      var mapDiv = document.getElementById('map');
-      map = new google.maps.Map(mapDiv, mapOptions);
-
-      // initialize the canvasLayer
-      var canvasLayerOptions = {
-        map: map,
-        resizeHandler: resize,
-        animate: false,
-        updateHandler: update,
-        resolutionScale: resolutionScale
-      };
-
-      canvasLayer = new CanvasLayer(canvasLayerOptions);
-      context = canvasLayer.canvas.getContext('2d');
-
-    }
-
-    function resize() {
-      // nothing to do here
-    }
-
-    function update() {
-      // clear previous canvas contents
-      var canvasWidth = canvasLayer.canvas.width;
-      var canvasHeight = canvasLayer.canvas.height;
-
-      context.clearRect(0, 0, canvasWidth, canvasHeight);
-
-      // we like our rectangles hideous
-      context.fillStyle = 'rgba(255, 255, 26, 1)';
-
-      /* We need to scale and translate the map for current view.
-       * see https://developers.google.com/maps/documentation/javascript/maptypes#MapCoordinates
-       */
-      var mapProjection = map.getProjection();
-
-      /**
-       * Clear transformation from last update by setting to identity matrix.
-       * Could use context.resetTransform(), but most browsers don't support
-       * it yet.
-       */
-      context.setTransform(1, 0, 0, 1, 0, 0);
-
-      // scale is just 2^zoom
-      // If canvasLayer is scaled (with resolutionScale), we need to scale by
-      // the same amount to account for the larger canvas.
-      var scale = Math.pow(2, map.zoom) * resolutionScale;
-      context.scale(scale, scale);
-
-      /* If the map was not translated, the topLeft corner would be 0,0 in
-       * world coordinates. Our translation is just the vector from the
-       * world coordinate of the topLeft corder to 0,0.
-       */
-      var offset = mapProjection.fromLatLngToPoint(canvasLayer.getTopLeft());
-      context.translate(-offset.x, -offset.y);
-      // project rectLatLng to world coordinates and draw
-      var worldPoint = mapProjection.fromLatLngToPoint(rectLatLng);
-
-      context.fillRect(worldPoint.x, worldPoint.y, rectWidth, rectWidth);
-    }
-  }
-
-  function createPaperMapVis(data) {
-
-    paper.install(window);
-
-    var overlay;
-    accidentsOverlay.prototype = new google.maps.OverlayView();
-
-    initMap();
-
-    function initMap() {
-      var options = [
-        {
-          "featureType": "administrative",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "featureType": "landscape",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        },{
-          "featureType": "poi",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "featureType": "poi.park",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        },{
-          "featureType": "transit.line",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "elementType": "labels.text",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        },{
-          "stylers": [
-            { "invert_lightness": true },
-            { "hue": "#0077ff" }
-          ]
-        },{
-          "featureType": "administrative.locality",
-          "elementType": "labels.text",
-          "stylers": [
-            { "visibility": "off" }
-          ]
-        },{
-          "featureType": "administrative.neighborhood",
-          "stylers": [
-            { "visibility": "simplified" }
-          ]
-        }
-      ];
-
-      var map = new google.maps.Map(document.getElementById('map'), {
-        zoom: 13,
-        center: new google.maps.LatLng(51.5, -0.11),
-        mapTypeId: google.maps.MapTypeId.TERRAIN,
-        zoomControl: true,
-        mapTypeControl: false,
-        scaleControl: false,
-        streetViewControl: false,
-        rotateControl: false,
-        fullscreenControl: false,
-        styles: options
-      });
-
-      var bounds = new google.maps.LatLngBounds(
-          new google.maps.LatLng(50.5, -1.0),
-          new google.maps.LatLng(52.5, 1.0));
-
-      overlay = new accidentsOverlay(map, bounds);
-
-    }
-
-    function accidentsOverlay(map, bounds) {
-
-      this.map_ = map;
-      this.bounds_ = bounds;
-
-      this.div_ = null;
-
-      this.setMap(map);
-
-      this.bounds_ = new google.maps.LatLngBounds(
-          new google.maps.LatLng(50.5, -1.0),
-          new google.maps.LatLng(52.5, 1.0));
-    }
-
-    accidentsOverlay.prototype.onAdd = function() {
-
-      var canvas = document.createElement('canvas');
-      canvas.setAttribute('id', 'canvas-map');
-      canvas.setAttribute('time', Date.now());
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      canvas.style.position = 'absolute';
-      canvas.style.left = '0';
-      canvas.style.top = '0';
-
-      paper.setup(canvas);
-
-      this.div_ = canvas;
-
-      var panes = this.getPanes();
-      panes.overlayMouseTarget.appendChild(canvas);
-
-    };
-
-    accidentsOverlay.prototype.draw = function() {
-
-      project.activeLayer.removeChildren();
-
-      var path = new Path.Circle(new Point(20, 20), 5);
-      path.style = {
-      	strokeColor: 'red',
-        fillColor: 'red'
-      };
-
-      var symbol = new Symbol(path);
-
-      var points = data.map( (d,i) => {
-        var point = this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(d.lat, d.lon));
-
-        return {
-          x: point.x,
-          y: point.y,
-          name: 'accident-'+i
-        }
-      });
-
-      points.forEach( function(point){
-      	var position = new Point(point.x, point.y);
-      	var placed = symbol.place(position);
-
-      	placed.onMouseDown = function(event) {
-      		console.log(event, this, point.name);
-      	}
-
-        placed.onMouseEnter = function(event) {
-          placed.scale(2, position);
-        }
-
-        placed.onMouseLeave = function(event) {
-          placed.scale(0.5, position);
-        }
-      });
-
-      paper.view.draw();
-    };
-
-    accidentsOverlay.prototype.onRemove = function() {
-      this.div_.parentNode.removeChild(this.div_);
-      this.div_ = null;
-    };
-
-  }
-
   function createAgeVis(data) {
 
     var ageVis = {};
@@ -1134,52 +818,64 @@ function createVis(data) {
     return modeVis;
 
     function preprocessData(data) {
-      // vehicle type + casualty mode (Pedestrian only) - original data: 16 unique values; updated data: 11 unique values
-      var allTrafficModes = [].concat.apply( ['Pedestrian'], data.map( d => {
-        return d.vehicles.map( v => {
-          preprocessVehicleType(v);
-          return v.type;
-        } );
-      } ) );
 
-      modeVis.modeTypes = Array.from( new Set( allTrafficModes ) ).sort();
+      data.forEach( d => {
+        d.casualties.forEach( casualty => preprocessCasualtyMode(casualty));
+        d.vehicles.forEach( vehicle => preprocessVehicleType(vehicle));
+      });
 
-      var trafficCasualties = modeVis.modeTypes.map( vehicleType  => {
-        var obj = {};
+      var casultyModes = [
+        { groupType: 'mode', type: 'AgriculturalVehicle', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'BusOrCoach', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'Car', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'GoodsVehicle', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'Motorcycle', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'OtherMotorVehicle', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'OtherNonMotorVehicle', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'PedalCycle', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'Pedestrian', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'Taxi', Slight: 0, Severe: 0, Fatal: 0, total: 0},
+        { groupType: 'mode', type: 'TramOrLightRail', Slight: 0, Severe: 0, Fatal: 0, total: 0}
+      ];
 
-        obj.Slight = 0;
-        obj.Severe = 0;
-        obj.Fatal = 0;
+      modeVis.modeTypes = casultyModes.map(d => d.type);
 
-        obj.groupType = 'mode';
-
+      casultyModes.forEach( mode => {
         data.forEach( data => {
-
-          if (vehicleType === 'Pedestrian') {
+          if (mode.type === 'Pedestrian') {
             data.casualties.forEach( casualty => {
               if (casualty.mode === 'Pedestrian') {
-                obj[data.severity] += 1;
-                obj.type = 'Pedestrian';
+                mode[data.severity] += 1;
               }
             });
           } else {
             data.vehicles.forEach( vehicle => {
-              if (vehicle.type === vehicleType) {
-                obj[data.severity] += 1;
-                obj.type = vehicleType;
+              if (vehicle.type === mode.type) {
+                mode[data.severity] += 1;
               }
             });
           }
-
         });
 
-        obj.total = obj.Slight + obj.Severe + obj.Fatal;
-        return obj;
+        mode.total = mode.Slight + mode.Severe + mode.Fatal;
       });
 
-      trafficCasualties.sort( (pre, cur) => (cur.Fatal + cur.Severe + cur.Slight) - (pre.Fatal + pre.Severe + pre.Slight));
+      return casultyModes.sort((pre, cur) => cur.total-pre.total);
 
-      return trafficCasualties;
+      function preprocessCasualtyMode(casualty) {
+        switch (casualty.mode) {
+          case 'PoweredTwoWheeler':
+            casualty.type = 'Motorcycle';
+            casualty.fullType = 'PoweredTwoWheeler';
+            break;
+          case 'OtherVehicle':
+            casualty.type = 'OtherMotorVehicle';
+            casualty.fullType = 'OtherVehicle';
+            break;
+          default:
+            casualty.type = casualty.mode;
+        }
+      }
 
       function preprocessVehicleType(vehicle) {
         switch (vehicle.type) {
@@ -1222,49 +918,13 @@ function createVis(data) {
     }
   }
 
-  function createBarVis(data, boxWidth) {
-
-    var visWidth = width - boxWidth;
-    var visHeight = height/2 - boxWidth;
-
-    var stack = d3.stack();
-
-    var xScale = d3.scaleBand()
-      .domain(data.map(d => d.type))
-      .rangeRound([0, visWidth])
-      .padding(0.1)
-      .align(0.1);
-
-    var yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, d => d.total)]).nice()
-      .range([visHeight, 1]);
-
-    var severityColor = d3.scaleOrdinal()
-      .domain(severityTypes)
-      .range(['#a05d56', '#98abc5', '#ff8c00']);
-
-    var svg = d3.select('#'+'vis-vehicles')
-      .append('svg')
-      .attr('width', visWidth)
-      .attr('height', visHeight);
-
-    svg.selectAll('.serie')
-      .data(stack.keys(severityTypes)(data))
-      .enter()
-      .append('g')
-        .attr('class', d => 'serie serie-'+d.key)
-        .attr('fill', d => severityColor(d.key))
-      .selectAll('rect')
-        .data(d => d)
-        .enter()
-        .append('rect')
-          .attr('x', d => xScale(d.data.type))
-          .attr('y', d => yScale(d[1]))
-          .attr('height', d => Math.max(1, yScale(d[0]) - yScale(d[1])) )
-          .attr('width', xScale.bandwidth());
-  }
-
   function createHorBarVis(data, idElement, height, iconsEnabled) {
+
+    var tip2 = d3.tip()
+      .attr('class', 'd3-tip d3-tip2')
+      .html(d => d)
+      .direction('e')
+      .offset([0,15])
 
     var horBarVis = {};
 
@@ -1317,6 +977,8 @@ function createVis(data) {
         .transition()
         .call(xAxis);
 
+      horBarVis.svg.call(tip2);
+
       var bars = horBarVis.svg.selectAll('.serie')
         .data(stack.keys(severityTypes)(data), d => d);
 
@@ -1338,6 +1000,8 @@ function createVis(data) {
             .attr('y', d => yScale(d.data.type))
             .attr('x', d => Math.max(shift, xScale(d[0])))
             .attr('height', yScale.bandwidth())
+            .on('mouseover', d => tip2.show('Casualties: '+(d3.format(',')(d[1]-d[0])) ))
+            .on('mouseout', tip2.hide)
           .transition()
             .attr('width', d => (xScale(d[1]) - xScale(d[0]) === 0) ? 0 : Math.max(1, xScale(d[1]) - xScale(d[0])))
             .style('fill-opacity', 1);
@@ -1369,28 +1033,49 @@ function createVis(data) {
           toggleClass(d3.select(this), '.rect-background', 'rect-hover', false);
         });
 
-    group.append('rect')
-      .attr('class', 'rect-background')
-      .attr('x', 0)
-      .attr('y', d => yScale(d.type))
-      .attr('width', yScale.bandwidth())
-      .attr('height', yScale.bandwidth())
-      .attr('fill', 'transparent');
-
     if (iconsEnabled) {
+      group.append('rect')
+        .attr('class', 'rect-background')
+        .attr('x', 0)
+        .attr('y', d => yScale(d.type))
+        .attr('width', yScale.bandwidth())
+        .attr('height', yScale.bandwidth())
+        .attr('fill', 'transparent');
+
       group.append('svg:image')
           .attr('class', 'icon-bar')
+          //.on('mouseover', d => tip.show('Vehicle: '+d.type+'<br/> (click to show only<br/>casualties where this<br/>type participated)'))
+          .on('mouseover', d => tip2.show('Vehicle: <br/>'+d.type))
+          .on('mouseout', tip2.hide)
           .attr('x', 1.5)
           .attr('y', d => yScale(d.type)+1.5)
           .attr('width', yScale.bandwidth()-3)
           .attr('height', yScale.bandwidth()-3)
           .attr('xlink:href', d => 'icons/'+d.type+'.svg');
+
     } else {
+      group.append('rect')
+        .attr('class', 'rect-background')
+        .attr('x', -8)
+        .attr('y', d => yScale(d.type))
+        .attr('width', yScale.bandwidth()*3)
+        .attr('height', yScale.bandwidth())
+        .attr('fill', 'transparent');
+
       group.append('text')
           .attr('class', 'label-bar label')
+          //.on('mouseover', d => tip.show('Age range: '+d.type[0]+'-'+d.type[1]+'<br/> (click to show only<br/>casualties where this<br/>group participated)'))
+          .on('mouseover', d => tip2.show('Age range: <br/>'+d.type[0]+'-'+d.type[1]))
+          .on('mouseout', tip2.hide)
           .attr('x', margin/3*2)
           .attr('y', d => yScale(d.type)+yScale.bandwidth()/4*3)
-          .text(d => d.type[0]+'+');
+          .text(d => {
+            if (d.type[1]===100) {
+              return d.type[0]+'+y';
+            } else {
+              return d.type[0]+'-'+d.type[1]+'y';
+            }
+          });
     }
 
     horBarVis.update(data);
@@ -1487,6 +1172,8 @@ function createVis(data) {
         .append('g')
           .attr('transform', 'translate('+ margin +','+ margin +')');
 
+      boroughVis.svg.call(tip);
+
       appendBackground(boroughVis.svg, visWidth, visHeight);
 
       boroughVis.update = function(data) {
@@ -1509,9 +1196,12 @@ function createVis(data) {
           })
           .on('mouseover', function (d) {
             toggleClass(d3.select(this), '.borough-rect', 'rect-hover', true);
+            tip.show(d.name+'<br/>Number of casualties: '+d.casualties);
+            //tip.show(d.name+'<br/>Number of casualties: '+d.casualties+'<br/><br/>(click to filter)');
           })
           .on('mouseout', function (d) {
             toggleClass(d3.select(this), '.borough-rect', 'rect-hover', false);
+            tip.hide();
           });
 
         var rect = group.append('rect')
@@ -1636,8 +1326,13 @@ function createVis(data) {
 
     severityVis.resetAll = () => {
       options.each(function(d) {
-        d3.select(this).attr('fill', severityColor(d.type));
-        d.selected = true;
+        if (d.type === 'Slight') {
+          d3.select(this).attr('fill', 'transparent');
+          d.selected = false;
+        } else {
+          d3.select(this).attr('fill', severityColor(d.type));
+          d.selected = true;
+        }
       });
     };
 

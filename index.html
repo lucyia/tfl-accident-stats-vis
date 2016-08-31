@@ -21,6 +21,9 @@
         font-family: Helvetica, Arial, sans-serif;
         color: white;
       }
+      h1 {
+        font-size: 28px;
+      }
       h2 {
         position: absolute;
         top: 0;
@@ -29,6 +32,49 @@
         height: 50px;
         margin: 20px 0 0 0;
         font-size: 10px;
+        text-align: center;
+      }
+      footer {
+        margin-top: 20px;
+        font-size: 9px;
+        color: grey;
+        line-height: 1.5;
+      }
+      .d3-tip, .d3-tip2 {
+        line-height: 1;
+        font-weight: bold;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        border-radius: 2px;
+        pointer-events: none;
+      }
+      .d3-tip:after, .d3-tip2:after {
+        box-sizing: border-box;
+        display: inline;
+        font-size: 10px;
+        width: 100%;
+        line-height: 1;
+        color: rgba(0, 0, 0, 0.8);
+        position: absolute;
+        pointer-events: none;
+      }
+      .d3-tip.n:after {
+        content: "\25BC";
+        margin: -1px 0 0 0;
+        top: 100%;
+        left: 0;
+        text-align: center;
+      }
+      .d3-tip.w:after, .d3-tip2.e:after {
+        content: "\25C0";
+        margin: -4px 0 0 0;
+        top: 50%;
+        left: -50%;
+      }
+      .d3-tip, .d3-tip2 {
+        font-size: 10px;
+        line-height: 1.5;
         text-align: center;
       }
       .accident-age {
@@ -68,34 +114,40 @@
       .domain {
         stroke: transparent;
       }
+      .wrapper {
+        background-color: rgba(0, 0, 0, 0.7);
+        position: absolute;
+      }
+      .wrapper-heading {
+        top: 10px;
+        right: 0;
+        padding: 0 30px;
+      }
       .wrapper-body {
         width: 300px;
-        position: absolute;
         top: 0;
         left: 0;
         padding: 10px 15px 0 0;
-        background-color: rgba(0, 0, 0, 0.7);
       }
-      .header {
-        position: absolute;
-        top: 0;
+      #about {
+        top: 130px;
         right: 0;
+        padding: 15px 30px 33px 30px;
+        font-size: 12px;
+        width: 240px;
       }
-      footer {
-        margin-top: 20px;
-        font-size: 9px;
-        color: grey;
-      }
-      #map {
-        width: 100%;
-        height: 100%;
-      }
-      canvas {
-        width: 100%;
-        height: 100%;
+      #toggle-about {
         position: absolute;
-        top: 0;
-        left: 0;
+        bottom: 10px;
+        left: 10px;
+      }
+      #about-title {
+        position: absolute;
+        top: 130px;
+        right: -100px;
+        padding: 5px 30px 5px 10px;
+        font-size: 11px;
+        cursor: pointer;
       }
       .casualties-map, .casualties-map svg {
         position: absolute;
@@ -105,6 +157,27 @@
         height: 20px;
         padding-right: 100px;
         font: 10px sans-serif;
+      }
+      .option-severity:hover {
+        stroke: '#05ffa7';
+        stroke-width: 2px;
+      }
+      .option-severity:hover, .rect-hover, .icon-bar:hover, .label-bar:hover, #toggle-about:hover {
+        cursor: pointer;
+      }
+      .authors {
+        font-size: 9px;
+        color: white;
+        top: 95px;
+        right: 0;
+        padding: 5px 30px 5px 10px;
+      }
+      .link {
+        color: #05ffa7;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
       }
       #vis-accident {
         position: absolute;
@@ -117,34 +190,69 @@
   <body>
 
     <div id='map'></div>
-    <div class='header'>
-      <h1>Visualizing TFL Accident Data</h1>
-    </div>
-    <div class='wrapper-body'>
+    <div class='heading'>
+      <div class='wrapper-heading wrapper'>
+        <h1>Visualizing TFL Accident Data</h1>
+      </div>
+      <div class='authors wrapper'>
+        created by
+        <a class='link' href='https://twitter.com/_lucyia' target='_blank' title='Lucia Kocincova'>
+          lucyia</a> &
+        <a class='link' href='https://twitter.com/calumhale' target='_blank' title='Calum Hale'>
+          calum</a>
+      </div>
+      <span id='about-title' class='wrapper'>
+        « About
+      </span>
+      <div id='about' class='wrapper'>
+        <span id='toggle-about'>
+          ✖
+        </span>
+        <div class='about-content'>
+          <div class='about-text'>
+            <p>This interactive visualisation aims to display traffic accident information as kept by
+              <a href='https://tfl.gov.uk/' class='link' target='_blank' title='Transport for London'>
+                Transport for London</a> for the year 2015. The traffic incidents are plotted geographically on the map, colour
+              coded by severity, and there are some interactive summary statistics in the left panel.
+            </p>
 
+            <p>Interactive elements highlight on hover, and can be clicked to filter the selection.
+              The supplementary information is broken down by vehicle type, by the age-range of the
+              people involved in the incidents and also by the London borough in which the incident
+              occurred.
+            </p>
+
+            <p>Feel free to explore the data and discover the accident hotspots in London!</p>
+          </div>
+          <footer>
+            <div>Icons (altered) made by
+              <a href='http://www.flaticon.com/authors/zlatko-najdenovski' target='_blank' title='Zlatko Najdenovski' class='link'>
+                Zlatko Najdenovski</a> and
+              <a href='http://www.flaticon.com' title='Flaticon' target='_blank' class='link'>
+                Flaticon</a> from
+              <a href='http://www.flaticon.com' title='Flaticon' target='_blank' class='link'>
+                www.flaticon.com</a>; licensed by
+              <a href='http://creativecommons.org/licenses/by/3.0/' title='Creative Commons BY 3.0' target='_blank' class='link'>
+                CC 3.0 BY</a>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <div class='wrapper-body wrapper'>
       <div id='options-severity'></div>
       <div id='vis-vehicles'></div>
       <div id='vis-age'></div>
       <div id='vis-boroughs'></div>
-
-      <footer>
-        <div>Icons (altered) made by <a href='http://www.flaticon.com/authors/zlatko-najdenovski' target='_blank' title='Zlatko Najdenovski'>Zlatko Najdenovski</a> from <a href='http://www.flaticon.com' title='Flaticon' target='_blank'>www.flaticon.com</a> is licensed by <a href='http://creativecommons.org/licenses/by/3.0/' title='Creative Commons BY 3.0' target='_blank'>CC 3.0 BY</a></div>
-      </footer>
     </div>
 
     <div id='vis-accident'>
       <h2 class='accident-location'></h2>
     </div>
 
-    <!-- remove if not neccessary after refactor! -->
-    <script src='//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js'></script>
     <script src='//maps.google.com/maps/api/js?'></script>
     <script src='//d3js.org/d3.v4.min.js'></script>
-    <script src='//cdnjs.cloudflare.com/ajax/libs/paper.js/0.10.2/paper-full.min.js'></script>
-    <script src='CanvasLayer.js'></script>
-    <script src='ShaderProgram.js'></script>
-    <script src='libtess.cat.js'></script>
-    <script src='WebGLLayer.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/d3-tip/0.7.1/d3-tip.min.js'></script>
     <script src='vis-accident-stats.js'></script>
 
   </body>
