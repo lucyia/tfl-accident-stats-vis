@@ -148,6 +148,372 @@ function createVis(data) {
     };
   }
 
+  function createAccidentVis() {
+
+    var vis = {};
+
+    var svgWidth = 300;
+    var svgHeight = 300;
+
+    var severityColor = d3.scaleOrdinal()
+      .domain(severityTypes)
+      .range(severityColorRange);
+
+    var svg = d3.select('#vis-accident')
+      .append('svg')
+        .attr('width', svgWidth)
+        .attr('height', svgHeight);
+
+    // quick replacement for button
+    svg.append('text')
+      .attr('class', 'label label-pointer')
+      .attr('x', svgWidth - 20)
+      .attr('y', 20)
+      .text('✖')
+      .on('click', () => {
+        d3.select('#vis-accident')
+          .transition()
+          .style('bottom', '-500px');
+      });
+
+    vis.update = accidentId => {
+      // reset style of wrapper
+      d3.select('#vis-accident').style('bottom', '0');
+
+      var accident = data.find(d => d.id === accidentId);
+
+      var angle = 360 / accident.casualties.length;
+      var r = 50;
+      var iconSize = 30;
+
+      casualtyModeIcon();
+      casualtySeverity();
+      casualtyAge();
+      //pieChart(accident.casualties[0].age);
+      dateTimeLabel(true);
+      dateTimeLabel(false);
+
+      function pieChart(age) {
+
+        var translateX = 100;
+        var translateY = 100;
+
+        var pie = d3.pie()
+          .value(d => d)
+          .sort(null);
+
+        var arc = d3.arc()
+          .outerRadius(30)
+          .innerRadius(40);
+
+        var data = [100-age, age];
+
+        var path = svg.datum(data).selectAll('path')
+          .data(pie)
+          .enter().append('path')
+            .attr('class','piechart')
+            .attr('transform', 'translate('+translateX+','+translateY+')')
+            .attr('fill', (d,i) => i === 0 ? 'blue' : 'white')
+            .attr('d', arc)
+          .each(function(d){ this._current = d; });
+
+        svg.datum(data).selectAll("path")
+            .data(pie)
+          .transition()
+            .attrTween("d", arcTween);
+
+        svg.datum(data).selectAll("path")
+          .data(pie)
+          .enter()
+          .append('path')
+            .attr('fill', (d,i) => i === 0 ? 'blue' : 'white')
+            .attr('d', arc)
+            .each(function(d){ this._current = d; })
+
+        svg.datum(data)
+          .selectAll('path')
+          .data(pie)
+          .exit()
+          .remove();
+
+        // code for arcTween function taken from Mike Bostock's block: https://bl.ocks.org/mbostock/1346410
+        function arcTween(a) {
+          var i = d3.interpolate(this._current, a);
+          this._current = i(0);
+          return function(t) {
+            return arc(i(t));
+          };
+        }
+      }
+
+      function casualtyModeIcon() {
+        var casualtyMode = svg.selectAll('.accident-icon')
+          .data(accident.casualties);
+
+        casualtyMode.exit()
+          .transition()
+            .style('opacity', 0)
+          .remove();
+
+        casualtyMode.enter()
+          .append('svg:image')
+            .attr('class', 'accident-icon')
+          .transition()
+            .style('opacity', 0)
+          .transition()
+            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('width', iconSize)
+            .attr('height', iconSize)
+          .transition()
+            .style('opacity', 1)
+            .attr('x', svgWidth/2)
+            .attr('y', svgHeight/2)
+          .transition()
+            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('xlink:href', d => 'icons/'+d.mode+'.svg')
+            .style('opacity', 1);
+
+        casualtyMode.transition()
+          .style('opacity', 0)
+          .transition()
+            .attr('xlink:href', d => 'icons/'+d.mode+'.svg')
+            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .attr('width', iconSize)
+            .attr('height', iconSize)
+          .transition()
+            .style('opacity', 1)
+            .attr('x', svgWidth/2 - 5) // shift of the text label
+            .attr('y', svgHeight/2 - 10) // shift of the text label
+          .transition()
+            .attr('x', (d, i) => pointOnCircle(angle*i, r)[0] - iconSize/2)
+            .attr('y', (d, i) => pointOnCircle(angle*i, r)[1] - iconSize/2)
+            .style('opacity', 1);
+      }
+
+      function casualtyAge() {
+
+        var shift = 15;
+
+        var casualtyAgeCircle = svg.selectAll('.accident-age-circle')
+          .data(accident.casualties);
+
+        casualtyAgeCircle.exit()
+          .transition()
+            .style('opacity', 0)
+          .remove();
+
+        casualtyAgeCircle.enter()
+          .append('circle')
+            .attr('class', 'accident-age-circle')
+            .style('opacity', 0)
+          .transition()
+            .attr('r', 10)
+            .attr('fill', 'white')
+          .transition()
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift)
+          .transition()
+            .attr('cx', svgWidth/2)
+            .attr('cy', svgHeight/2)
+          .transition(d3.transition().duration(3000))
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift)
+            .style('opacity', 1);
+
+        casualtyAgeCircle.transition()
+            .style('opacity', 0)
+          .transition()
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift)
+          .transition()
+            .attr('cx', svgWidth/2)
+            .attr('cy', svgHeight/2)
+          .transition(d3.transition().duration(3000))
+            .style('opacity', 1)
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0]+shift)
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1]-shift);
+
+        var casualtyAge = svg.selectAll('.accident-age')
+          .data(accident.casualties);
+
+        casualtyAge.exit()
+          .transition()
+            .style('opacity', 0)
+          .remove();
+
+        casualtyAge.enter()
+          .append('text')
+            .attr('class', 'accident-age')
+            .attr('fill', 'black')
+          .transition()
+            .style('opacity', 0)
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+')')
+          .transition(d3.transition().duration(3000))
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+            .style('opacity', 1)
+            .text(d => (d.age) ? d.age+'y' : 'N/A');
+
+        casualtyAge.transition()
+            .style('opacity', 0)
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+')')
+          .transition(d3.transition().duration(3000))
+            .style('opacity', 1)
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift/4*2)+','+(pointOnCircle(angle*i, r)[1]-shift/4*3)+')')
+            .text(d => (d.age) ? d.age+'y' : 'N/A');
+
+      }
+
+      function casualtySeverity() {
+        var shift = 10;
+
+        var casualtySeverity = svg.selectAll('.accident-severity')
+          .data(accident.casualties);
+
+        casualtySeverity.exit()
+          .transition()
+            .style('opacity', 0)
+          .remove();
+
+        casualtySeverity.enter()
+          .append('path')
+            .attr('class', 'accident-severity')
+          .transition()
+            .style('opacity', 0)
+          .transition()
+            .attr('fill', d => severityColor(d.severity))
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')')
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+') scale('+0+')')
+          .transition(d3.transition().duration(3000))
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')')
+            .attr('d', 'M 243.44676,222.01677 C 243.44676,288.9638 189.17548,343.23508 122.22845,343.23508 C 55.281426,343.23508 1.0101458,288.9638 1.0101458,222.01677 C 1.0101458,155.06975 40.150976,142.95572 122.22845,0.79337431 C 203.60619,141.74374 243.44676,155.06975 243.44676,222.01677 z')
+            .style('opacity', 1);
+
+        casualtySeverity.transition()
+            .style('opacity', 0)
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')')
+          .transition()
+            .attr('transform', (d, i) => 'translate('+(svgWidth/2)+','+(svgHeight/2)+') scale('+0+')')
+          .transition(d3.transition().duration(3000))
+            .style('opacity', 1)
+            .attr('fill', d => severityColor(d.severity))
+            .attr('transform', (d, i) => 'translate('+(pointOnCircle(angle*i, r)[0]+shift)+','+(pointOnCircle(angle*i, r)[1])+') scale('+0.05+')');
+
+      }
+
+      function severityCircles() {
+        var accidentCircles = svg.selectAll('.accident-circle')
+          .data(accident.casualties);
+
+        accidentCircles.exit()
+          .transition()
+            .attr('r', 0)
+            .style('fill-opacity', 0)
+          .remove();
+
+        accidentCircles.enter()
+          .append('circle')
+            .attr('class', 'accident-circle')
+          .transition()
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('r', 0)
+          .transition()
+            .attr('cx', svgWidth/2)
+            .attr('cy', svgHeight/2)
+            .attr('r', iconSize)
+            .attr('fill', d => severityColor(d.severity))
+          .transition()
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .style('opacity', 1);
+
+        accidentCircles.transition()
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('r', 0)
+          .transition()
+            .attr('cx', svgWidth/2)
+            .attr('cy', svgHeight/2)
+            .attr('r', iconSize)
+          .transition()
+            .attr('cx', (d, i) => pointOnCircle(angle*i, r)[0])
+            .attr('cy', (d, i) => pointOnCircle(angle*i, r)[1])
+            .attr('fill', d => severityColor(d.severity));
+
+      }
+
+      function dateTimeLabel(dateToggle) {
+        var className = dateToggle ? 'accident-date' : 'accident-time';
+        var shift = dateToggle ? 0 : 17;
+        var fontSize = dateToggle ? '10px' : '9px';
+
+        var dateTime = svg.selectAll('.'+className)
+          .data([accident]);
+
+        dateTime.exit()
+          .style('opacity', '0')
+          .style('font-size', '0px')
+          .remove();
+
+        dateTime.enter()
+          .append('text')
+          .attr('class', className+' label NEW')
+          .attr('x', svgWidth/2)
+          .attr('y', svgHeight/2 + shift)
+          .style('text-anchor', 'middle')
+          .style('opacity', '0')
+          .style('font-size', fontSize)
+          .transition(d3.transition().duration(3000))
+          .style('opacity', '1')
+          .text(dateTimeText);
+
+        dateTime.transition()
+          .style('opacity', '0')
+          .transition(d3.transition().duration(3000))
+          .attr('x', svgWidth/2)
+          .attr('y', svgHeight/2 + shift)
+          .style('opacity', '1')
+          .style('font-size', fontSize)
+          .text(dateTimeText);
+
+        function dateTimeText(d) {
+          if (dateToggle) {
+            return new Date(d.date).toLocaleDateString();
+          } else {
+            var time = new Date(d.date).toLocaleTimeString();
+            var parsedTime = /(.+:.+):.+\s(.+)/.exec(time);
+            return parsedTime[1].concat(' ').concat(parsedTime[2]);
+          }
+        }
+      }
+    }
+
+    return vis;
+
+    function pointOnCircle(angle, radius) {
+      var center = [svgWidth/2, svgHeight/2];
+
+      var rads = angle * Math.PI / 180;
+
+      var x = center[0] + radius * Math.cos(rads);
+      var y = center[1] + radius * Math.sin(rads);
+
+      return [x, y];
+    }
+
+  }
+
   function createMapVis(data) {
 
     var mapData = data;
